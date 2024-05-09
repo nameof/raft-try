@@ -1,0 +1,23 @@
+{
+  "id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "ip": "127.0.0.1",
+      "port": 8080
+    },
+    {
+      "id": 2,
+      "ip": "127.0.0.1",
+      "port": 8081
+    },
+    {
+      "id": 3,
+      "ip": "127.0.0.1",
+      "port": 8082
+    }
+  ],
+  "heartbeatInterval": 200,
+  "minHeartbeatTimeOut": 500,
+  "maxHeartbeatTimeOut": 1000
+}
