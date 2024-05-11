@@ -7,12 +7,23 @@ import com.nameof.raft.rpc.Reply;
 
 public class Leader implements State {
     @Override
-    public Reply onRequestVote(Node context, Message.RequestVoteMessage message) {
-        return null;
+    public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
+        // 请求任期小于等于当前任期，拒绝投票，并发送心跳
+        if (message.getTerm() <= context.getCurrentTerm()) {
+            // TODO 发送心跳
+            return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
+        }
+
+        // 更新任期（请求任期大于当前任期），切换状态
+        context.setCurrentTerm(message.getTerm());
+        State newState = new Follower();
+        context.setState(newState);
+
+        return newState.onRequestVote(context, message);
     }
 
     @Override
-    public Reply onAppendEntry(Node context, Message.RequestVoteMessage message) {
+    public Reply.AppendEntryReply onAppendEntry(Node context, Message.RequestVoteMessage message) {
         return null;
     }
 }
