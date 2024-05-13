@@ -21,7 +21,15 @@ public class Candidate implements State {
     }
 
     @Override
-    public Reply.AppendEntryReply onAppendEntry(Node context, Message.RequestVoteMessage message) {
-        return null;
+    public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
+        if (message.getTerm() > context.getCurrentTerm()) {
+            context.setCurrentTerm(message.getTerm());
+
+            State newState = new Follower();
+            context.setState(newState);
+            return newState.onAppendEntry(context, message);
+        }
+
+        return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
     }
 }

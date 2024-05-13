@@ -32,7 +32,51 @@ public class Follower implements State {
     }
 
     @Override
-    public Reply.AppendEntryReply onAppendEntry(Node context, Message.RequestVoteMessage message) {
-        return null;
+    public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
+        if (message.getTerm() < context.getCurrentTerm()) {
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+        }
+
+        // TODO 重置选举超时定时器
+
+        // 更新任期并重置投票给的候选者（如果请求任期更大）
+        context.setCurrentTerm(message.getTerm());
+        context.setVotedFor(null);
+
+        if (message.getEntries().isEmpty()) {
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
+        }
+
+        /**
+         * Reply false if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm ($5.3)
+         * If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all thatfollow it (§5.3)
+         * Append any new entries not already in the log
+         * If leaderCommit>commitIndex,set commitIndex=min(leaderCommit, index of last new entry)
+         */
+        if (!isLogConsistent(message.getPrevLogIndex(), message.getPrevLogTerm())) {
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+        }
+
+        // 追加新日志
+        int newestLogIndex = appendEntriesFromRequest(message);
+
+        // 如果Leader的commitIndex大于当前的，更新本地的commitIndex
+        if (message.getLeaderCommit() > context.getCommitIndex()) {
+            context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
+            // TODO commit log
+        }
+
+        // 响应成功
+        return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
+    }
+
+    private boolean isLogConsistent(int prevLogIndex, int prevLogTerm) {
+        // TODO
+        return false;
+    }
+
+    private int appendEntriesFromRequest(Message.AppendEntryMessage message) {
+        // TODO
+        return 0;
     }
 }

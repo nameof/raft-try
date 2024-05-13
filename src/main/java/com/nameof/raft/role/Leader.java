@@ -23,7 +23,15 @@ public class Leader implements State {
     }
 
     @Override
-    public Reply.AppendEntryReply onAppendEntry(Node context, Message.RequestVoteMessage message) {
-        return null;
+    public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
+        if (message.getTerm() > context.getCurrentTerm()) {
+            // 降级为Follower
+            State newState = new Follower();
+            context.setState(newState);
+            return newState.onAppendEntry(context, message);
+        } else {
+            // FIXME 发送心跳/发送error/忽略
+            return null;
+        }
     }
 }

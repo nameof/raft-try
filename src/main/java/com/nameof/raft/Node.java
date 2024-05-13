@@ -37,6 +37,10 @@ public class Node {
         // TODO 持久化
     }
 
+    public void setCommitIndex(int commitIndex) {
+        this.commitIndex = commitIndex;
+    }
+
     public int getLastLogTerm() {
         return 0;
     }
