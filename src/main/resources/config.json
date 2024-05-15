@@ -18,6 +18,6 @@
     }
   ],
   "heartbeatInterval": 200,
-  "minHeartbeatTimeOut": 500,
-  "maxHeartbeatTimeOut": 1000
+  "minElectionTimeOut": 600,
+  "maxElectionTimeOut": 1000
 }
