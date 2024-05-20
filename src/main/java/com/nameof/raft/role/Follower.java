@@ -2,10 +2,15 @@ package com.nameof.raft.role;
 
 
 import com.nameof.raft.Node;
+import com.nameof.raft.log.LogEntry;
+import com.nameof.raft.log.LogStorage;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
 
 public class Follower implements State {
+
+    private LogStorage logStorage;
+
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
         // 请求任期小于当前任期，拒绝投票
@@ -37,7 +42,8 @@ public class Follower implements State {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
-        // TODO 重置选举超时定时器
+        // 重置选举超时定时器
+        context.resetElectionTimeoutTimer();
 
         // 更新任期并重置投票给的候选者（如果请求任期更大）
         context.setCurrentTerm(message.getTerm());
@@ -57,26 +63,34 @@ public class Follower implements State {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
+        int leaderNextIndex = message.getPrevLogIndex() + 1;
+        LogEntry first = message.getEntries().get(0);
+        if (logConflict(leaderNextIndex, first.getTerm())) {
+            logStorage.deleteAfter(leaderNextIndex);
+        }
+
         // 追加新日志
         int newestLogIndex = appendEntriesFromRequest(message);
 
         // 如果Leader的commitIndex大于当前的，更新本地的commitIndex
         if (message.getLeaderCommit() > context.getCommitIndex()) {
             context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
-            // TODO commit log
         }
 
         // 响应成功
         return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
     }
 
+    private boolean logConflict(int index, int term) {
+        LogEntry entry = logStorage.findByIndex(index);
+        return entry != null && entry.getTerm() != term;
+    }
+
     private boolean isLogConsistent(int prevLogIndex, int prevLogTerm) {
-        // TODO
-        return false;
+        return logStorage.findByTermAndIndex(prevLogTerm, prevLogIndex) != null;
     }
 
     private int appendEntriesFromRequest(Message.AppendEntryMessage message) {
-        // TODO
-        return 0;
+        return logStorage.append(message.getEntries());
     }
 }
