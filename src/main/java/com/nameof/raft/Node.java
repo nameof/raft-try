@@ -6,6 +6,7 @@ import com.nameof.raft.log.LogStorage;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.State;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Map;
 
@@ -21,7 +22,9 @@ public class Node {
     private int lastApplied;  // 已经被应用到状态机的最高的日志条目的索引（初始值为0，单调递增）
 
     // leader易失性状态
+    @Setter
     private Map<Integer, Integer> nextIndex;  // 对于每一台服务器，发送到该服务器的下一个日志条目的索引（初始值为领导者最后的日志条目的索引+1）
+    @Setter
     private Map<Integer, Integer> matchIndex; // 对于每一台服务器，已知的已经复制到该服务器的最高日志条目的索引（初始值为0，单调递增）
 
     private State state;
@@ -44,19 +47,16 @@ public class Node {
 
     public void start() {
         // 启动选举超时定时器
-        startElectionTimeoutTimer();
+        resetElectionTimeoutTimer();
+
         // 启动事件处理器
 
         // 监听网络请求
     }
 
-    private void startElectionTimeoutTimer() {
-        // TODO
-    }
-
     public void setState(State state) {
         this.state = state;
-        // TODO state.init(this);
+        this.state.init(this);
     }
 
     public void setCurrentTerm(int currentTerm) {
@@ -81,6 +81,10 @@ public class Node {
 
     public int getLastLogIndex() {
         return logStorage.lastIndex();
+    }
+
+    public void stopElectionTimeoutTimer() {
+        // TODO
     }
 
     public void resetElectionTimeoutTimer() {

@@ -7,6 +7,16 @@ import com.nameof.raft.rpc.Reply;
 
 public class Candidate implements State {
     @Override
+    public void init(Node context) {
+        context.setNextIndex(null);
+        context.setMatchIndex(null);
+
+        context.setCurrentTerm(context.getCurrentTerm() + 1);
+        context.setVotedFor(context.getId());
+        context.resetElectionTimeoutTimer();
+    }
+
+    @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
         // 请求任期大于当前任期，转为follower
         if (message.getTerm() > context.getCurrentTerm()) {

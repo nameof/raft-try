@@ -12,6 +12,14 @@ public class Follower implements State {
     private LogStorage logStorage;
 
     @Override
+    public void init(Node context) {
+        context.setNextIndex(null);
+        context.setMatchIndex(null);
+        context.setVotedFor(null);
+        context.resetElectionTimeoutTimer();
+    }
+
+    @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
         // 请求任期小于当前任期，拒绝投票
         if (message.getTerm() < context.getCurrentTerm()) {
@@ -42,12 +50,12 @@ public class Follower implements State {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
-        // 重置选举超时定时器
-        context.resetElectionTimeoutTimer();
-
         // 更新任期并重置投票给的候选者（如果请求任期更大）
         context.setCurrentTerm(message.getTerm());
         context.setVotedFor(null);
+
+        // 重置选举超时定时器
+        context.resetElectionTimeoutTimer();
 
         if (message.getEntries().isEmpty()) {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
