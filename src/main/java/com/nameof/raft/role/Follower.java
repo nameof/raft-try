@@ -9,8 +9,6 @@ import com.nameof.raft.rpc.Reply;
 
 public class Follower implements State {
 
-    private LogStorage logStorage;
-
     @Override
     public void init(Node context) {
         context.setNextIndex(null);
@@ -67,18 +65,18 @@ public class Follower implements State {
          * Append any new entries not already in the log
          * If leaderCommit>commitIndex,set commitIndex=min(leaderCommit, index of last new entry)
          */
-        if (!isLogConsistent(message.getPrevLogIndex(), message.getPrevLogTerm())) {
+        if (!isLogConsistent(context, message.getPrevLogIndex(), message.getPrevLogTerm())) {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
         int leaderNextIndex = message.getPrevLogIndex() + 1;
         LogEntry first = message.getEntries().get(0);
-        if (logConflict(leaderNextIndex, first.getTerm())) {
-            logStorage.deleteAfter(leaderNextIndex);
+        if (logConflict(context, leaderNextIndex, first.getTerm())) {
+            context.getLogStorage().deleteAfter(leaderNextIndex);
         }
 
         // 追加新日志
-        int newestLogIndex = appendEntriesFromRequest(message);
+        int newestLogIndex = appendEntriesFromRequest(context, message);
 
         // 如果Leader的commitIndex大于当前的，更新本地的commitIndex
         if (message.getLeaderCommit() > context.getCommitIndex()) {
@@ -89,16 +87,16 @@ public class Follower implements State {
         return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
     }
 
-    private boolean logConflict(int index, int term) {
-        LogEntry entry = logStorage.findByIndex(index);
+    private boolean logConflict(Node context, int index, int term) {
+        LogEntry entry = context.getLogStorage().findByIndex(index);
         return entry != null && entry.getTerm() != term;
     }
 
-    private boolean isLogConsistent(int prevLogIndex, int prevLogTerm) {
-        return logStorage.findByTermAndIndex(prevLogTerm, prevLogIndex) != null;
+    private boolean isLogConsistent(Node context, int prevLogIndex, int prevLogTerm) {
+        return context.getLogStorage().findByTermAndIndex(prevLogTerm, prevLogIndex) != null;
     }
 
-    private int appendEntriesFromRequest(Message.AppendEntryMessage message) {
-        return logStorage.append(message.getEntries());
+    private int appendEntriesFromRequest(Node context, Message.AppendEntryMessage message) {
+        return context.getLogStorage().append(message.getEntries());
     }
 }

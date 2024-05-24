@@ -3,6 +3,7 @@ package com.nameof.raft;
 import com.nameof.raft.config.Configuration;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.log.LogStorage;
+import com.nameof.raft.log.MemoryLogStorage;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.State;
 import lombok.Getter;
@@ -29,7 +30,7 @@ public class Node {
 
     private State state;
     private final Configuration config;
-    private final LogStorage logStorage;
+    private final LogStorage logStorage = new MemoryLogStorage();
 
     public Node() {
         config = Configuration.get();
@@ -39,15 +40,11 @@ public class Node {
         lastApplied = 0;
 
         // TODO 读取currentTerm、votedFor
-
-        logStorage = null;
-
-        setState(new Follower());
     }
 
     public void start() {
-        // 启动选举超时定时器
-        resetElectionTimeoutTimer();
+        // 初始化并启动选举超时定时器
+        setState(new Follower());
 
         // 启动事件处理器
 
