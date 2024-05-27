@@ -3,7 +3,6 @@ package com.nameof.raft.role;
 
 import com.nameof.raft.Node;
 import com.nameof.raft.log.LogEntry;
-import com.nameof.raft.log.LogStorage;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
 
@@ -14,6 +13,7 @@ public class Follower implements State {
         context.setNextIndex(null);
         context.setMatchIndex(null);
         context.setVotedFor(null);
+        context.stopHeartbeatTimer();
         context.resetElectionTimeoutTimer();
     }
 

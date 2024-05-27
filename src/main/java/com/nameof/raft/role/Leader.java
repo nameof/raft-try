@@ -21,6 +21,7 @@ public class Leader implements State {
 
         // 停止选举超时定时器
         context.stopElectionTimeoutTimer();
+        context.startHeartbeatTimer();
     }
 
     @Override

@@ -13,6 +13,8 @@ public class Candidate implements State {
 
         context.setCurrentTerm(context.getCurrentTerm() + 1);
         context.setVotedFor(context.getId());
+
+        context.stopHeartbeatTimer();
         context.resetElectionTimeoutTimer();
     }
 

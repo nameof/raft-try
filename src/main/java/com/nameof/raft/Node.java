@@ -31,6 +31,7 @@ public class Node {
     private State state;
     private final Configuration config;
     private final LogStorage logStorage = new MemoryLogStorage();
+    private final StateStorage stateStorage = new StateStorage();
 
     public Node() {
         config = Configuration.get();
@@ -39,16 +40,17 @@ public class Node {
         commitIndex = 0;
         lastApplied = 0;
 
-        // TODO 读取currentTerm、votedFor
+        currentTerm = stateStorage.getCurrentTerm();
+        votedFor = stateStorage.getVotedFor();
     }
 
     public void start() {
         // 初始化并启动选举超时定时器
         setState(new Follower());
 
-        // 启动事件处理器
-
         // 监听网络请求
+
+        // 启动事件处理器
     }
 
     public void setState(State state) {
@@ -58,12 +60,12 @@ public class Node {
 
     public void setCurrentTerm(int currentTerm) {
         this.currentTerm = currentTerm;
-        // TODO 持久化
+        this.stateStorage.setCurrentTerm(currentTerm);
     }
 
     public void setVotedFor(Integer votedFor) {
         this.votedFor = votedFor;
-        // TODO 持久化
+        this.stateStorage.setVotedFor(votedFor);
     }
 
     public void setCommitIndex(int commitIndex) {
@@ -85,6 +87,14 @@ public class Node {
     }
 
     public void resetElectionTimeoutTimer() {
+        // TODO
+    }
+
+    public void startHeartbeatTimer() {
+        // TODO
+    }
+
+    public void stopHeartbeatTimer() {
         // TODO
     }
 }
