@@ -20,6 +20,7 @@ public class Configuration {
     private static volatile Configuration instance;
 
     private int id;
+    private NodeInfo nodeInfo;
     private List<NodeInfo> nodes;
     private Map<Integer, NodeInfo> nodeMap;
     private int majority;
@@ -51,6 +52,7 @@ public class Configuration {
             Configuration config = JSONUtil.toBean(IoUtil.read(inputStream, StandardCharsets.UTF_8), Configuration.class);
             config.setMajority(config.getNodes().size() / 2 + 1);
             config.setNodeMap(config.getNodes().stream().filter(n -> n.getId() != config.getId()).collect(Collectors.toMap(NodeInfo::getId, n -> n)));
+            config.setNodeInfo(config.getNodes().stream().filter(n -> n.getId() == config.getId()).findFirst().get());
             config.setElectionTimeOut(RandomUtil.randomInt(config.getMinElectionTimeOut(), config.getMaxElectionTimeOut()));
             return config;
         }
