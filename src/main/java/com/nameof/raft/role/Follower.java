@@ -56,8 +56,13 @@ public class Follower implements State {
         context.resetElectionTimeoutTimer();
 
         if (message.getEntries().isEmpty()) {
-            // TODO 这里也要更新commitIndex
             int matchIndex = context.getLastLogIndex();
+
+            // 心跳响应也需要更新commitIndex
+            if (message.getLeaderCommit() > context.getCommitIndex()) {
+                context.setCommitIndex(Math.min(message.getLeaderCommit(), matchIndex));
+            }
+
             return new Reply.AppendEntryReply(context.getCurrentTerm(), true, matchIndex);
         }
 
