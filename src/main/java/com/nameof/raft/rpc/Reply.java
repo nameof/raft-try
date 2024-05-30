@@ -23,5 +23,11 @@ public class Reply {
     public static class AppendEntryReply {
         private int term;
         private boolean success;
+        private Integer matchIndex;
+
+        public AppendEntryReply(int term, boolean success) {
+            this.term = term;
+            this.success = success;
+        }
     }
 }

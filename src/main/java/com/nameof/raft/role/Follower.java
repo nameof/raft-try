@@ -56,7 +56,9 @@ public class Follower implements State {
         context.resetElectionTimeoutTimer();
 
         if (message.getEntries().isEmpty()) {
-            return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
+            // TODO 这里也要更新commitIndex
+            int matchIndex = context.getLastLogIndex();
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), true, matchIndex);
         }
 
         /**
@@ -69,13 +71,14 @@ public class Follower implements State {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
-        int leaderNextIndex = message.getPrevLogIndex() + 1;
+        int newLogStartIndex = message.getPrevLogIndex() + 1;
         LogEntry first = message.getEntries().get(0);
-        if (logConflict(context, leaderNextIndex, first.getTerm())) {
-            context.getLogStorage().deleteAfter(leaderNextIndex);
+        if (logConflict(context, newLogStartIndex, first.getTerm())) {
+            context.getLogStorage().deleteAfter(newLogStartIndex);
         }
 
         // 追加新日志
+        // TODO 为保证幂等，不能直接追加，而是要在leaderNextIndex处开始追加
         int newestLogIndex = appendEntriesFromRequest(context, message);
 
         // 如果Leader的commitIndex大于当前的，更新本地的commitIndex
@@ -84,7 +87,8 @@ public class Follower implements State {
         }
 
         // 响应成功
-        return new Reply.AppendEntryReply(context.getCurrentTerm(), true);
+        int matchIndex = context.getLastLogIndex();
+        return new Reply.AppendEntryReply(context.getCurrentTerm(), true, matchIndex);
     }
 
     private boolean logConflict(Node context, int index, int term) {
