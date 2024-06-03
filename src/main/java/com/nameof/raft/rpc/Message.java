@@ -4,6 +4,7 @@ import com.nameof.raft.log.LogEntry;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 import java.util.List;
 
@@ -14,13 +15,15 @@ public class Message {
 
     @Getter
     @Setter
+    @SuperBuilder
     public static abstract class AbstractMessage {
-        private int term;
-        private int id;
+        protected int term;
+        protected int id;
     }
 
     @Getter
     @Setter
+    @SuperBuilder
     public static class RequestVoteMessage extends AbstractMessage {
         private int candidateId;
         private int lastLogIndex;  // 候选人的最后日志条目的索引值
@@ -29,6 +32,7 @@ public class Message {
 
     @Getter
     @Setter
+    @SuperBuilder
     public static class AppendEntryMessage extends AbstractMessage {
         private int leaderId;
         private int prevLogIndex;  // 新日志条目之前的那个日志条目的索引

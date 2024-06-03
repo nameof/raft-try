@@ -23,6 +23,11 @@ public class MemoryLogStorage implements LogStorage {
     }
 
     @Override
+    public List<LogEntry> findByIndexAndAfter(int index) {
+        return data.subList(index, data.size());
+    }
+
+    @Override
     public int deleteAfter(int index) {
         int size = data.size();
         if (index >= size) {

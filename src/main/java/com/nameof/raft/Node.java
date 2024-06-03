@@ -1,14 +1,21 @@
 package com.nameof.raft;
 
 import com.nameof.raft.config.Configuration;
+import com.nameof.raft.config.NodeInfo;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.log.LogStorage;
 import com.nameof.raft.log.MemoryLogStorage;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.State;
+import com.nameof.raft.rpc.Message;
+import com.nameof.raft.rpc.Reply;
+import com.nameof.raft.rpc.Rpc;
+import com.nameof.raft.rpc.http.HttpRpc;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -33,6 +40,8 @@ public class Node {
     private final LogStorage logStorage = new MemoryLogStorage();
     private final StateStorage stateStorage = new StateStorage();
 
+    private final Rpc rpc;
+
     public Node() {
         config = Configuration.get();
         id = config.getId();
@@ -42,6 +51,8 @@ public class Node {
 
         currentTerm = stateStorage.getCurrentTerm();
         votedFor = stateStorage.getVotedFor();
+
+        rpc = new HttpRpc(config);
     }
 
     public void start() {
@@ -49,6 +60,7 @@ public class Node {
         setState(new Follower());
 
         // 监听网络请求
+        rpc.startServer();
 
         // 启动事件处理器
     }
@@ -96,5 +108,86 @@ public class Node {
 
     public void stopHeartbeatTimer() {
         // TODO
+    }
+
+
+    private void sendHeartbeat() {
+        appendEntry(Collections.emptyList());
+    }
+
+    private void appendEntry(List<LogEntry> entries) {
+        int leaderLastLogIndex = getLastLogIndex();
+        int leaderLastLogTerm = getLastLogTerm();
+        for (Map.Entry<Integer, NodeInfo> entry : config.getNodeMap().entrySet()) {
+            Integer followerId = entry.getKey();
+            // 日志不一致，首先同步
+            int matchIndex = this.getMatchIndex().get(followerId);
+            if (leaderLastLogIndex != matchIndex) {
+                if (!syncLog(followerId)) {
+                    continue;
+                }
+            }
+
+            Message.AppendEntryMessage message = buildMessage(entries, leaderLastLogIndex, leaderLastLogTerm);
+            Reply.AppendEntryReply reply = rpc.appendEntry(message);
+            appendEntryReply(followerId, reply);
+        }
+
+        if (!entries.isEmpty()) {
+            logStorage.append(entries);
+        }
+
+        // TODO 根据各节点响应的matchIndex，更新commitIndex
+
+        /*
+         FIXME 大多数节点失联时（仅考虑失联，部分节点日志不一致不代表集群出现问题，只是需要同步，例如部分节点崩溃后恢复），可以启动选举超时定时器，以便重试几次无果后主动重新选举
+         这里暂时依靠其它follower来触发选举
+        */
+    }
+
+    private boolean appendEntryReply(Integer followerId, Reply.AppendEntryReply reply) {
+        // 同步成功
+        if (reply.isSuccess()) {
+            this.getMatchIndex().put(followerId, reply.getMatchIndex());
+            this.getNextIndex().put(followerId, reply.getMatchIndex() + 1);
+            return true;
+        }
+        // 同步失败
+        // 任期落后，转为follower
+        if (reply.getTerm() > getCurrentTerm()) {
+            setState(new Follower());
+            return false;
+        }
+        // 等待下次回溯重试
+        this.getNextIndex().put(followerId, this.getNextIndex().get(followerId) - 1);
+        this.getMatchIndex().put(followerId, this.getMatchIndex().get(followerId) - 1);
+        return false;
+    }
+
+    private boolean syncLog(Integer followerId) {
+        int nextIndex = this.getNextIndex().get(followerId);
+        int matchIndex = this.getMatchIndex().get(followerId);
+        if (matchIndex == getLastLogIndex()) {
+            return true;
+        }
+
+        List<LogEntry> entries = logStorage.findByIndexAndAfter(nextIndex);
+        int prevLogTerm = logStorage.findByIndex(matchIndex).getTerm();
+
+        Message.AppendEntryMessage message = buildMessage(entries, matchIndex, prevLogTerm);
+        Reply.AppendEntryReply reply = rpc.appendEntry(message);
+        return appendEntryReply(followerId, reply);
+    }
+
+    private Message.AppendEntryMessage buildMessage(List<LogEntry> entries, int prevLogIndex, int prevLogTerm) {
+        return Message.AppendEntryMessage.builder()
+                .id(this.id)
+                .leaderId(this.id)
+                .term(this.currentTerm)
+                .leaderCommit(this.commitIndex)
+                .prevLogIndex(prevLogIndex)
+                .prevLogTerm(prevLogTerm)
+                .entries(entries)
+                .build();
     }
 }

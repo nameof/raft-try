@@ -42,6 +42,9 @@ public class Follower implements State {
         return message.getLastLogTerm() >= context.getLastLogTerm() && message.getLastLogIndex() >= context.getLastLogIndex();
     }
 
+    /**
+     * 响应给leader的matchIndex，也就是本地最新的日志索引
+     */
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
         if (message.getTerm() < context.getCurrentTerm()) {
@@ -56,14 +59,14 @@ public class Follower implements State {
         context.resetElectionTimeoutTimer();
 
         if (message.getEntries().isEmpty()) {
-            int matchIndex = context.getLastLogIndex();
+            int newestLogIndex = context.getLastLogIndex();
 
             // 心跳响应也需要更新commitIndex
             if (message.getLeaderCommit() > context.getCommitIndex()) {
-                context.setCommitIndex(Math.min(message.getLeaderCommit(), matchIndex));
+                context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
             }
 
-            return new Reply.AppendEntryReply(context.getCurrentTerm(), true, matchIndex);
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
         }
 
         /**
@@ -86,14 +89,12 @@ public class Follower implements State {
         // TODO 为保证幂等，不能直接追加，而是要在leaderNextIndex处开始追加
         int newestLogIndex = appendEntriesFromRequest(context, message);
 
-        // 如果Leader的commitIndex大于当前的，更新本地的commitIndex
+        // 更新commitIndex
         if (message.getLeaderCommit() > context.getCommitIndex()) {
             context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
         }
 
-        // 响应成功
-        int matchIndex = context.getLastLogIndex();
-        return new Reply.AppendEntryReply(context.getCurrentTerm(), true, matchIndex);
+        return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
     }
 
     private boolean logConflict(Node context, int index, int term) {

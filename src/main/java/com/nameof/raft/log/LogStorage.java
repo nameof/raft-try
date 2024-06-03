@@ -7,6 +7,8 @@ public interface LogStorage {
 
     LogEntry findByIndex(int index);
 
+    List<LogEntry> findByIndexAndAfter(int index);
+
     /**
      * 删除指定位置及以后的所有日志
      * @param index
