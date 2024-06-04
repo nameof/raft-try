@@ -1,6 +1,9 @@
 package com.nameof.raft.rpc.http;
 
+import cn.hutool.http.HttpUtil;
+import cn.hutool.json.JSONUtil;
 import com.nameof.raft.config.Configuration;
+import com.nameof.raft.config.NodeInfo;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
 import com.nameof.raft.rpc.Rpc;
@@ -35,7 +38,13 @@ public class HttpRpc implements Rpc {
     }
 
     @Override
-    public Reply.AppendEntryReply appendEntry(Message.AppendEntryMessage message) {
-        return null;
+    public Reply.AppendEntryReply appendEntry(NodeInfo info, Message.AppendEntryMessage message) {
+        try {
+            String url = String.format("http://%s:%d", info.getIp(), info.getPort());
+            String response = HttpUtil.post(url, JSONUtil.toJsonStr(message));
+            return JSONUtil.toBean(response, Reply.AppendEntryReply.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

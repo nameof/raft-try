@@ -4,23 +4,21 @@ import lombok.*;
 
 @Data
 public class Reply {
-    private ReplyType type;
-    private String payload;
 
     @Getter
     @Setter
-    @AllArgsConstructor
     @NoArgsConstructor
-    public static class RequestVoteReply {
+    @AllArgsConstructor
+    public static class RequestVoteReply extends Reply {
         private int term;
         private boolean voteGranted;
     }
 
     @Getter
     @Setter
-    @AllArgsConstructor
     @NoArgsConstructor
-    public static class AppendEntryReply {
+    @AllArgsConstructor
+    public static class AppendEntryReply extends Reply {
         private int term;
         private boolean success;
         private Integer matchIndex;
