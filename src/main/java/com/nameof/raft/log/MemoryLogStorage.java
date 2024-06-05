@@ -46,6 +46,18 @@ public class MemoryLogStorage implements LogStorage {
     }
 
     @Override
+    public int append(int index, List<LogEntry> logs) {
+        int size = data.size();
+        if (index < size) {
+            deleteAfter(index);
+        } else if (index > size) {
+            return -1;
+        }
+        append(logs);
+        return data.size() - 1;
+    }
+
+    @Override
     public LogEntry getLast() {
         int size = data.size();
         if (size == 0) {

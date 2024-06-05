@@ -86,8 +86,11 @@ public class Follower implements State {
         }
 
         // 追加新日志
-        // TODO 为保证幂等，不能直接追加，而是要在leaderNextIndex处开始追加
-        int newestLogIndex = appendEntriesFromRequest(context, message);
+        // 保证幂等，不直接追加，而是在newLogStartIndex处开始追加
+        int newestLogIndex = appendEntriesFromRequest(context, newLogStartIndex, message);
+        if (newestLogIndex == -1) {
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+        }
 
         // 更新commitIndex
         if (message.getLeaderCommit() > context.getCommitIndex()) {
@@ -106,7 +109,7 @@ public class Follower implements State {
         return context.getLogStorage().findByTermAndIndex(prevLogTerm, prevLogIndex) != null;
     }
 
-    private int appendEntriesFromRequest(Node context, Message.AppendEntryMessage message) {
-        return context.getLogStorage().append(message.getEntries());
+    private int appendEntriesFromRequest(Node context, int index, Message.AppendEntryMessage message) {
+        return context.getLogStorage().append(index, message.getEntries());
     }
 }
