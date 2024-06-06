@@ -57,4 +57,8 @@ public class Configuration {
             return config;
         }
     }
+
+    public NodeInfo getNodeInfo(int id) {
+        return nodeMap.get(id);
+    }
 }
