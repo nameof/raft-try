@@ -47,6 +47,14 @@ public class StateStorage {
 
     public void setVotedFor(Integer votedFor) {
         File f = new File(this.parent, "votedFor");
+        if (votedFor == null) {
+            FileUtil.del(f);
+            return;
+        }
         FileUtil.writeString(votedFor + "", f, StandardCharsets.UTF_8);
+    }
+
+    public void clearState() {
+        FileUtil.clean(this.parent);
     }
 }
