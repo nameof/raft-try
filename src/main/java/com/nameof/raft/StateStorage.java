@@ -3,16 +3,22 @@ package com.nameof.raft;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
 import com.nameof.raft.config.Configuration;
+import lombok.Getter;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 
 public class StateStorage {
     private final Configuration config = Configuration.get();
+    @Getter
     private final File parent;
 
     public StateStorage() {
-        this.parent = new File(FileUtil.getTmpDir(), "raft-try" + File.separator + config.getId());
+        this(FileUtil.getTmpDir());
+    }
+
+    public StateStorage(File parentDir) {
+        this.parent = new File(parentDir, "raft-try" + File.separator + config.getId());
         this.parent.mkdirs();
     }
 
