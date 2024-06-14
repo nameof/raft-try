@@ -8,10 +8,11 @@ import java.util.Collections;
 import java.util.List;
 
 public class MemoryLogStorageTest {
-    MemoryLogStorage memoryLogStorage = new MemoryLogStorage();
+    MemoryLogStorage memoryLogStorage;
 
     @Before
     public void setUp() {
+        memoryLogStorage = new MemoryLogStorage();
     }
 
     @Test

@@ -11,12 +11,16 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+import java.util.concurrent.BlockingQueue;
+
 public class HttpRpc implements Rpc {
 
     private final int port;
+    private final BlockingQueue<Message> queue;
 
-    public HttpRpc(Configuration config) {
-        this.port = config.getNodeInfo().getPort();
+    public HttpRpc(BlockingQueue<Message> queue) {
+        this.port = Configuration.get().getNodeInfo().getPort();
+        this.queue = queue;
     }
 
     @Override
@@ -26,7 +30,7 @@ public class HttpRpc implements Rpc {
         context.setContextPath("/");
         server.setHandler(context);
 
-        ServletHolder servletHolder = new ServletHolder(CoreServlet.class);
+        ServletHolder servletHolder = new ServletHolder(new CoreServlet(queue));
         context.addServlet(servletHolder, "/");
 
         try {

@@ -47,7 +47,7 @@ public class Configuration {
         return instance;
     }
 
-    public static Configuration loadConfig() throws IOException {
+    private static Configuration loadConfig() throws IOException {
         try (InputStream inputStream = Configuration.class.getResourceAsStream("/config.json")) {
             Configuration config = JSONUtil.toBean(IoUtil.read(inputStream, StandardCharsets.UTF_8), Configuration.class);
             config.setMajority(config.getNodes().size() / 2 + 1);
