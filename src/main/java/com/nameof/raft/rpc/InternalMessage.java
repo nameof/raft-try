@@ -4,14 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-import java.util.Map;
-
 @SuperBuilder
 public class InternalMessage extends Message {
-
-    @Setter
-    @Getter
-    private Map<String, Object> extra;
 
     @SuperBuilder
     public static class ElectionTimeoutMessage extends InternalMessage {

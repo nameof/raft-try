@@ -21,8 +21,11 @@ public class MessageHandler implements Runnable {
         this.context = context;
         this.queue = queue;
         map = new HashMap<MessageType, Handler>() {{
-            put(MessageType.ElectionTimeout, new ElectionTimeoutHandler());
+            put(MessageType.ElectionTimeout, new ElectionTimeoutHandler(rpc));
             put(MessageType.Heartbeat, new HeartbeatHandler(rpc));
+            put(MessageType.ClientAppendEntry, new ClientAppendEntryHandler(rpc));
+            put(MessageType.AppendEntry, new AppendEntryHandler(rpc));
+            put(MessageType.RequestVote, new RequestVoteHandler(rpc));
         }};
     }
 
@@ -37,8 +40,7 @@ public class MessageHandler implements Runnable {
             try {
                 message = queue.take();
                 map.get(message.getType()).handle(context, message);
-            } catch (InterruptedException e) {
-                return;
+            } catch (InterruptedException ignored) {
             } catch (Exception e) {
                 log.error("消息处理失败：{}", message, e);
             }

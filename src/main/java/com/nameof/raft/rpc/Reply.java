@@ -2,8 +2,14 @@ package com.nameof.raft.rpc;
 
 import lombok.*;
 
+import java.util.Map;
+
 @Data
 public class Reply {
+
+    @Setter
+    @Getter
+    private Map<String, Object> extra;
 
     @Getter
     @Setter
@@ -27,5 +33,13 @@ public class Reply {
             this.term = term;
             this.success = success;
         }
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ClientAppendEntryReply extends Reply {
+        private boolean success;
     }
 }

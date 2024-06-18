@@ -1,14 +1,12 @@
 package com.nameof.raft.rpc;
 
-import cn.hutool.core.util.ReflectUtil;
-import cn.hutool.json.JSONUtil;
 import com.nameof.raft.log.LogEntry;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -17,6 +15,7 @@ public abstract class Message {
     private MessageType type;
     private int term;
     private int id;
+    private Map<String, Object> extra;
 
     @Getter
     @Setter

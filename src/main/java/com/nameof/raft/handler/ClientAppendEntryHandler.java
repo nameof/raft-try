@@ -9,8 +9,6 @@ import com.nameof.raft.role.Follower;
 import com.nameof.raft.rpc.*;
 import lombok.SneakyThrows;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.http.HttpServletResponse;
 import java.util.*;
 
 public class ClientAppendEntryHandler implements Handler {
@@ -30,17 +28,14 @@ public class ClientAppendEntryHandler implements Handler {
 
         InternalMessage.ClientAppendEntryMessage m = (InternalMessage.ClientAppendEntryMessage) message;
         LogEntry logEntry = new LogEntry(context.getCurrentTerm(), m.getData());
-        appendEntry(context, Collections.singletonList(logEntry));
-
-        Map<String, Object> extra = m.getExtra();
-        AsyncContext asyncContext = (AsyncContext) extra.get("asyncContext");
-        HttpServletResponse response = (HttpServletResponse) extra.get("response");
-        response.setStatus(200);
-        response.getWriter().println("OK");
-        asyncContext.complete();
+        try {
+            boolean success = appendEntry(context, Collections.singletonList(logEntry));
+            rpc.sendReply(new Reply.ClientAppendEntryReply(success));
+        } catch (StateChangeException ignore) {
+        }
     }
 
-    protected void appendEntry(Node context, List<LogEntry> entries) {
+    protected boolean appendEntry(Node context, List<LogEntry> entries) {
         int leaderLastLogIndex = context.getLastLogIndex();
         int leaderLastLogTerm = context.getLastLogTerm();
 
@@ -50,20 +45,16 @@ public class ClientAppendEntryHandler implements Handler {
             Integer followerId = entry.getKey();
             // 日志不一致，首先同步
             int matchIndex = context.getMatchIndex().get(followerId);
-            try {
-                if (leaderLastLogIndex != matchIndex) {
-                    if (!syncLog(context, followerId)) {
-                        continue;
-                    }
+            if (leaderLastLogIndex != matchIndex) {
+                if (!syncLog(context, followerId)) {
+                    continue;
                 }
+            }
 
-                Message.AppendEntryMessage message = buildMessage(context, entries, leaderLastLogIndex, leaderLastLogTerm);
-                Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);
-                if (appendEntryReply(context, followerId, reply)) {
-                    successFollower.add(followerId);
-                }
-            } catch (StateChangeException e) {
-                return;
+            Message.AppendEntryMessage message = buildMessage(context, entries, leaderLastLogIndex, leaderLastLogTerm);
+            Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);
+            if (appendEntryReply(context, followerId, reply)) {
+                successFollower.add(followerId);
             }
         }
 
@@ -71,12 +62,13 @@ public class ClientAppendEntryHandler implements Handler {
 
         int success = successFollower.size() + 1;
         if (success < config.getMajority() || entries.isEmpty()) {
-            return;
+            return false;
         }
 
         context.getLogStorage().append(entries);
         // 根据各节点响应的matchIndex，更新commitIndex
         context.refreshCommitIndex(successFollower);
+        return true;
     }
 
     private boolean appendEntryReply(Node context, Integer followerId, Reply.AppendEntryReply reply) {
