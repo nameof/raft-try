@@ -120,6 +120,14 @@ public class Node {
     }
 
     public void refreshCommitIndex(Set<Integer> successFollower) {
-        // TODO
+        int newCommitIndex = this.getLastLogIndex();
+        for (Integer follower : successFollower) {
+            Integer matchIndex = this.getMatchIndex().get(follower);
+            newCommitIndex = Math.min(newCommitIndex, matchIndex);
+        }
+        if (newCommitIndex <= this.commitIndex) {
+            return;
+        }
+        setCommitIndex(newCommitIndex);
     }
 }
