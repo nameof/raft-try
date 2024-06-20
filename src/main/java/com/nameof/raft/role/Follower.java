@@ -38,8 +38,21 @@ public class Follower implements State {
         }
     }
 
+    /**
+     * 候选人最后一条Log条目的任期号大于本地最后一条Log条目的任期号；
+     * 或候选人最后一条Log条目的任期号等于本地最后一条Log条目的任期号，且候选人的Log记录长度大于等于本地Log记录的长度
+     * @param context
+     * @param message
+     * @return
+     */
     private boolean candidateLogIsNewerOrEqual(Node context, Message.RequestVoteMessage message) {
-        return message.getLastLogTerm() >= context.getLastLogTerm() && message.getLastLogIndex() >= context.getLastLogIndex();
+        if (message.getLastLogTerm() > context.getLastLogTerm()) {
+            return true;
+        }
+        if (message.getLastLogTerm() == context.getLastLogTerm()) {
+            return message.getLastLogIndex() >= context.getLastLogIndex();
+        }
+        return false;
     }
 
     /**
