@@ -3,8 +3,6 @@ package com.nameof.raft.log;
 import java.util.List;
 
 public interface LogStorage {
-    LogEntry findByTermAndIndex(int term, int index);
-
     LogEntry findByIndex(int index);
 
     List<LogEntry> findByIndexAndAfter(int index);

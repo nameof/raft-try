@@ -9,16 +9,10 @@ public class MemoryLogStorage implements LogStorage {
     private ArrayList<LogEntry> data = new ArrayList<>();
 
     @Override
-    public LogEntry findByTermAndIndex(int term, int index) {
+    public LogEntry findByIndex(int index) {
         if (index >= data.size()) {
             return null;
         }
-        LogEntry logEntry = data.get(index);
-        return logEntry.getTerm() == term ? logEntry : null;
-    }
-
-    @Override
-    public LogEntry findByIndex(int index) {
         return data.get(index);
     }
 

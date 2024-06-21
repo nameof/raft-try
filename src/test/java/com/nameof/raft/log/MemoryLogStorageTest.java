@@ -16,16 +16,6 @@ public class MemoryLogStorageTest {
     }
 
     @Test
-    public void testFindByTermAndIndex() throws Exception {
-        LogEntry result = memoryLogStorage.findByTermAndIndex(0, 0);
-        Assert.assertNull(result);
-
-        memoryLogStorage.append(Collections.singletonList(new LogEntry()));
-        result = memoryLogStorage.findByTermAndIndex(0, 0);
-        Assert.assertEquals(new LogEntry(), result);
-    }
-
-    @Test
     public void testFindByIndexAndAfter() throws Exception {
         memoryLogStorage.append(Collections.singletonList(new LogEntry()));
 
