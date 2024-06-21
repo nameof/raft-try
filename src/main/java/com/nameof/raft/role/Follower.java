@@ -5,7 +5,9 @@ import com.nameof.raft.Node;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Follower implements State {
 
     @Override
@@ -19,8 +21,11 @@ public class Follower implements State {
 
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
+        log.info("Follower-onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+
         // 请求任期小于当前任期，拒绝投票
         if (message.getTerm() < context.getCurrentTerm()) {
+            log.info("拒绝投票");
             return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
         }
 
@@ -32,8 +37,10 @@ public class Follower implements State {
         if ((context.getVotedFor() == null || context.getVotedFor().equals(message.getCandidateId()))
                 && candidateLogIsNewerOrEqual(context, message)) {
             context.setVotedFor(message.getCandidateId());
+            log.info("日志符合，赞成投票");
             return new Reply.RequestVoteReply(context.getCurrentTerm(), true);
         } else {
+            log.info("日志较旧，拒绝投票");
             return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
         }
     }
@@ -60,7 +67,9 @@ public class Follower implements State {
      */
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
+        log.info("Follower-onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         if (message.getTerm() < context.getCurrentTerm()) {
+            log.info("拒绝追加日志");
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
@@ -89,12 +98,14 @@ public class Follower implements State {
          * If leaderCommit>commitIndex,set commitIndex=min(leaderCommit, index of last new entry)
          */
         if (!isLogConsistent(context, message.getPrevLogIndex(), message.getPrevLogTerm())) {
+            log.info("日志不一致，拒绝追加日志");
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
         int newLogStartIndex = message.getPrevLogIndex() + 1;
         LogEntry first = message.getEntries().get(0);
         if (logConflict(context, newLogStartIndex, first.getTerm())) {
+            log.info("删除冲突位置及之后的日志{}", newLogStartIndex);
             context.getLogStorage().deleteAfter(newLogStartIndex);
         }
 
@@ -102,6 +113,7 @@ public class Follower implements State {
         // 保证幂等，不直接追加，而是在newLogStartIndex处开始追加
         int newestLogIndex = appendEntriesFromRequest(context, newLogStartIndex, message);
         if (newestLogIndex == -1) {
+            log.info("日志不一致，拒绝追加日志");
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
@@ -110,6 +122,7 @@ public class Follower implements State {
             context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
         }
 
+        log.info("AppendEntry执行完成");
         return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
     }
 
@@ -119,7 +132,9 @@ public class Follower implements State {
     }
 
     private boolean isLogConsistent(Node context, int prevLogIndex, int prevLogTerm) {
-        return context.getLogStorage().findByTermAndIndex(prevLogTerm, prevLogIndex) != null;
+        LogEntry log = context.getLogStorage().findByIndex(prevLogIndex);
+        int myPrevLogTerm = log == null ? -1 : log.getTerm();
+        return myPrevLogTerm == prevLogTerm;
     }
 
     private int appendEntriesFromRequest(Node context, int index, Message.AppendEntryMessage message) {
