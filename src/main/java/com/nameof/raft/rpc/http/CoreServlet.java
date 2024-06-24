@@ -2,9 +2,11 @@ package com.nameof.raft.rpc.http;
 
 
 import cn.hutool.extra.servlet.ServletUtil;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.nameof.raft.rpc.InternalMessage;
 import com.nameof.raft.rpc.Message;
+import com.nameof.raft.rpc.MessageType;
 import lombok.SneakyThrows;
 
 import javax.servlet.AsyncContext;
@@ -22,9 +24,17 @@ import java.util.concurrent.BlockingQueue;
 public class CoreServlet extends HttpServlet {
 
     private final BlockingQueue<Message> queue;
+    private final Map<MessageType, Class<?>> typeMap;
 
     public CoreServlet(BlockingQueue<Message> queue) {
         this.queue = queue;
+        typeMap = new HashMap<MessageType, Class<?>>() {{
+            put(MessageType.ElectionTimeout, InternalMessage.ElectionTimeoutMessage.class);
+            put(MessageType.Heartbeat, InternalMessage.HeartbeatTimeoutMessage.class);
+            put(MessageType.ClientAppendEntry, InternalMessage.ClientAppendEntryMessage.class);
+            put(MessageType.AppendEntry, Message.AppendEntryMessage.class);
+            put(MessageType.RequestVote, Message.RequestVoteMessage.class);
+        }};
     }
 
     @SneakyThrows
@@ -39,7 +49,9 @@ public class CoreServlet extends HttpServlet {
             put("asyncContext", asyncContext);
         }};
 
-        InternalMessage.ClientAppendEntryMessage message = JSONUtil.toBean(ServletUtil.getBody(request), InternalMessage.ClientAppendEntryMessage.class);
+        JSONObject obj = JSONUtil.parseObj(ServletUtil.getBody(request));
+        MessageType type = MessageType.valueOf(obj.getStr("type"));
+        Message message = (Message) JSONUtil.toBean(obj, this.typeMap.get(type));
         message.setExtra(map);
         queue.put(message);
     }

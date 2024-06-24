@@ -1,23 +1,28 @@
 package com.nameof.raft.rpc;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
+@NoArgsConstructor
 public class InternalMessage extends Message {
 
     @SuperBuilder
+    @NoArgsConstructor
     public static class ElectionTimeoutMessage extends InternalMessage {
     }
 
     @SuperBuilder
+    @NoArgsConstructor
     public static class HeartbeatTimeoutMessage extends InternalMessage {
     }
 
     @Setter
     @Getter
     @SuperBuilder
+    @NoArgsConstructor
     public static class ClientAppendEntryMessage extends InternalMessage {
         private String data;
     }

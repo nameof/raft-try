@@ -2,6 +2,7 @@ package com.nameof.raft.rpc;
 
 import com.nameof.raft.log.LogEntry;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
@@ -11,6 +12,7 @@ import java.util.Map;
 @Getter
 @Setter
 @SuperBuilder
+@NoArgsConstructor
 public abstract class Message {
     private MessageType type;
     private int term;
@@ -20,6 +22,7 @@ public abstract class Message {
     @Getter
     @Setter
     @SuperBuilder
+    @NoArgsConstructor
     public static class RequestVoteMessage extends Message {
         private int candidateId;
         private int lastLogIndex;  // 候选人的最后日志条目的索引值
@@ -29,6 +32,7 @@ public abstract class Message {
     @Getter
     @Setter
     @SuperBuilder
+    @NoArgsConstructor
     public static class AppendEntryMessage extends Message {
         private int leaderId;
         private int prevLogIndex;  // 新日志条目之前的那个日志条目的索引
