@@ -4,7 +4,9 @@ import com.nameof.raft.Node;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
 import com.nameof.raft.rpc.Rpc;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class AppendEntryHandler implements Handler {
 
     private final Rpc rpc;

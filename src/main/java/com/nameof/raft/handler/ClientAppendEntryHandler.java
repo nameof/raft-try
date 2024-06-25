@@ -82,7 +82,7 @@ public class ClientAppendEntryHandler implements Handler {
         }
         // 同步成功
         if (reply.isSuccess()) {
-            log.info("appendEntry成功");
+            log.info("followerId {} appendEntry成功", followerId);
             context.getMatchIndex().put(followerId, reply.getMatchIndex());
             context.getNextIndex().put(followerId, reply.getMatchIndex() + 1);
             return true;
@@ -90,11 +90,11 @@ public class ClientAppendEntryHandler implements Handler {
         // 同步失败
         // 任期落后，转为follower
         if (reply.getTerm() > context.getCurrentTerm()) {
-            log.info("appendEntry失败，任期落后");
+            log.info("followerId {} appendEntry失败，任期落后", followerId);
             context.setState(new Follower());
             throw new StateChangeException();
         }
-        log.info("appendEntry失败，日志未匹配");
+        log.info("followerId {} appendEntry失败，日志未匹配", followerId);
         // 等待下次回溯重试
         context.getNextIndex().put(followerId, context.getNextIndex().get(followerId) - 1);
         context.getMatchIndex().put(followerId, context.getMatchIndex().get(followerId) - 1);

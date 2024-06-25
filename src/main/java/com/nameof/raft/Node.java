@@ -14,12 +14,14 @@ import com.nameof.raft.timer.ElectionTimeoutTimer;
 import com.nameof.raft.timer.HeartbeatTimer;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+@Slf4j
 @Getter
 public class Node {
     // 持久状态
@@ -75,6 +77,7 @@ public class Node {
     }
 
     public void setState(State state) {
+        log.info("状态初始化：{}", state.getClass().getSimpleName());
         this.state = state;
         this.state.init(this);
     }
@@ -82,14 +85,17 @@ public class Node {
     public void setCurrentTerm(int currentTerm) {
         this.currentTerm = currentTerm;
         this.stateStorage.setCurrentTerm(currentTerm);
+        log.info("currentTerm更新：{}", currentTerm);
     }
 
     public void setVotedFor(Integer votedFor) {
         this.votedFor = votedFor;
         this.stateStorage.setVotedFor(votedFor);
+        log.info("votedFor更新：{}", votedFor);
     }
 
     public void setCommitIndex(int commitIndex) {
+        log.info("commitIndex更新：{}", votedFor);
         this.commitIndex = commitIndex;
         // TODO commit log
     }
@@ -120,12 +126,14 @@ public class Node {
     }
 
     public void refreshCommitIndex(Set<Integer> successFollower) {
+        log.info("重新计算commitIndex，当前值：{}", this.commitIndex);
         int newCommitIndex = this.getLastLogIndex();
         for (Integer follower : successFollower) {
             Integer matchIndex = this.getMatchIndex().get(follower);
             newCommitIndex = Math.min(newCommitIndex, matchIndex);
         }
         if (newCommitIndex <= this.commitIndex) {
+            log.info("无需更新commitIndex");
             return;
         }
         setCommitIndex(newCommitIndex);

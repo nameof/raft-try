@@ -4,9 +4,11 @@ import com.nameof.raft.config.Configuration;
 import com.nameof.raft.rpc.InternalMessage;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.MessageType;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.*;
 
+@Slf4j
 public class ElectionTimeoutTimer {
 
     private final BlockingQueue<Message> queue;
@@ -18,7 +20,13 @@ public class ElectionTimeoutTimer {
         this.queue = queue;
     }
 
+
     public void stop() {
+        log.info("stop ElectionTimeoutTimer");
+        cancel();
+    }
+
+    private void cancel() {
         if (schedule != null && !schedule.isDone()) {
             schedule.cancel(true);
         }
@@ -32,7 +40,8 @@ public class ElectionTimeoutTimer {
     }
 
     public void reset() {
-        stop();
+        log.info("reset ElectionTimeoutTimer");
+        cancel();
         start();
     }
 
