@@ -30,11 +30,12 @@ public class ClientAppendEntryHandler implements Handler {
 
         InternalMessage.ClientAppendEntryMessage m = (InternalMessage.ClientAppendEntryMessage) message;
         LogEntry logEntry = new LogEntry(context.getCurrentTerm(), m.getData());
+        boolean success = false;
         try {
-            boolean success = appendEntry(context, Collections.singletonList(logEntry));
-            rpc.sendReply(new Reply.ClientAppendEntryReply(success));
+            success = appendEntry(context, Collections.singletonList(logEntry));
         } catch (StateChangeException ignore) {
         }
+        rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success));
     }
 
     protected boolean appendEntry(Node context, List<LogEntry> entries) {

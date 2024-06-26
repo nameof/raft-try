@@ -5,6 +5,8 @@ import lombok.*;
 import java.util.Map;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Reply {
 
     @Setter
@@ -41,5 +43,10 @@ public class Reply {
     @AllArgsConstructor
     public static class ClientAppendEntryReply extends Reply {
         private boolean success;
+
+        public ClientAppendEntryReply(Map<String, Object> extra, boolean success) {
+            super(extra);
+            this.success = success;
+        }
     }
 }

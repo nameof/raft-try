@@ -39,6 +39,7 @@ public class MessageHandler implements Runnable {
             Message message = null;
             try {
                 message = queue.take();
+                log.info("处理事件：{}", message.getType());
                 map.get(message.getType()).handle(context, message);
             } catch (InterruptedException ignored) {
             } catch (Exception e) {

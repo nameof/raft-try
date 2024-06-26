@@ -95,7 +95,7 @@ public class Node {
     }
 
     public void setCommitIndex(int commitIndex) {
-        log.info("commitIndex更新：{}", votedFor);
+        log.info("commitIndex更新：{}", commitIndex);
         this.commitIndex = commitIndex;
         // TODO commit log
     }

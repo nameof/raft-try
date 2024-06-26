@@ -4,7 +4,9 @@ package com.nameof.raft.role;
 import com.nameof.raft.Node;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class Candidate implements State {
     @Override
     public void init(Node context) {
@@ -20,6 +22,7 @@ public class Candidate implements State {
 
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
+        log.info("Candidate-onRequestVote-请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         // 请求任期大于当前任期，转为follower
         if (message.getTerm() > context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());
