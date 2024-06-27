@@ -15,6 +15,7 @@ import com.nameof.raft.timer.HeartbeatTimer;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 
 import java.util.Map;
 import java.util.Set;
@@ -77,8 +78,9 @@ public class Node {
     }
 
     public void setState(State state) {
-        log.info("状态初始化：{}", state.getClass().getSimpleName());
         this.state = state;
+        MDC.put("nodeRole", state.getClass().getSimpleName());
+        log.info("状态初始化：{}", state.getClass().getSimpleName());
         this.state.init(this);
     }
 

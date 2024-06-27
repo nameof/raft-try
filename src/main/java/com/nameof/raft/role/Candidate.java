@@ -22,7 +22,7 @@ public class Candidate implements State {
 
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
-        log.info("Candidate-onRequestVote-请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        log.info("onRequestVote-请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         // 请求任期大于当前任期，转为follower
         if (message.getTerm() > context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());

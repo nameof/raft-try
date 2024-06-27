@@ -21,13 +21,15 @@ public class Follower implements State {
 
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
-        log.info("Follower-onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        log.info("onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
 
         // 请求任期小于当前任期，拒绝投票
         if (message.getTerm() < context.getCurrentTerm()) {
             log.info("拒绝投票");
             return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
         }
+
+        // TODO 任期内只投票一次
 
         // 更新任期（请求任期大于当前任期），已是follower无需切换状态
         context.setCurrentTerm(message.getTerm());
@@ -67,7 +69,8 @@ public class Follower implements State {
      */
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
-        log.info("Follower-onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+
+        log.info("onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         if (message.getTerm() < context.getCurrentTerm()) {
             log.info("拒绝追加日志");
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);

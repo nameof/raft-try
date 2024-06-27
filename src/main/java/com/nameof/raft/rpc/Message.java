@@ -17,7 +17,7 @@ public abstract class Message {
     private MessageType type;
     private int term;
     private int id;
-    private Map<String, Object> extra;
+    private transient Map<String, Object> extra;
 
     @Getter
     @Setter

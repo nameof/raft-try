@@ -5,6 +5,7 @@ import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.MessageType;
 import com.nameof.raft.rpc.Rpc;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +17,7 @@ public class MessageHandler implements Runnable {
     private final Node context;
     private final BlockingQueue<Message> queue;
     private final Map<MessageType, Handler> map;
+    private Map<String, String> mdcContextMap;
 
     public MessageHandler(Node context, Rpc rpc, BlockingQueue<Message> queue) {
         this.context = context;
@@ -30,11 +32,16 @@ public class MessageHandler implements Runnable {
     }
 
     public void start() {
-        new Thread(this).start();
+        mdcContextMap = MDC.getCopyOfContextMap();
+
+        Thread thread = new Thread(this);
+        thread.setName("HandlerThread");
+        thread.start();
     }
 
     @Override
     public void run() {
+        MDC.setContextMap(mdcContextMap);
         while (true) {
             Message message = null;
             try {

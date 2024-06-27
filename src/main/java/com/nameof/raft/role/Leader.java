@@ -28,7 +28,7 @@ public class Leader implements State {
 
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
-        log.info("Leader-onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        log.info("onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         // 请求任期小于等于当前任期，拒绝投票，并发送心跳
         if (message.getTerm() <= context.getCurrentTerm()) {
             // TODO 发送心跳
@@ -45,7 +45,7 @@ public class Leader implements State {
 
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
-        log.info("Leader-onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        log.info("onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         if (message.getTerm() > context.getCurrentTerm()) {
             // 降级为Follower
             State newState = new Follower();
