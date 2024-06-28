@@ -6,6 +6,7 @@ import com.nameof.raft.config.NodeInfo;
 import com.nameof.raft.exception.StateChangeException;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.role.Follower;
+import com.nameof.raft.role.RoleType;
 import com.nameof.raft.rpc.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -26,15 +27,16 @@ public class ClientAppendEntryHandler implements Handler {
     @SneakyThrows
     @Override
     public void handle(Node context, Message message) {
-        // TODO 检查是否leader角色
-
         InternalMessage.ClientAppendEntryMessage m = (InternalMessage.ClientAppendEntryMessage) message;
-        LogEntry logEntry = new LogEntry(context.getCurrentTerm(), m.getData());
         boolean success = false;
-        try {
-            success = appendEntry(context, Collections.singletonList(logEntry));
-        } catch (StateChangeException ignore) {
+        if (context.getState().getRole() == RoleType.Leader) {
+            LogEntry logEntry = new LogEntry(context.getCurrentTerm(), m.getData());
+            try {
+                success = appendEntry(context, Collections.singletonList(logEntry));
+            } catch (StateChangeException ignore) {
+            }
         }
+        // TODO 重定向请求
         rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success));
     }
 
@@ -67,13 +69,15 @@ public class ClientAppendEntryHandler implements Handler {
 
         int success = successFollower.size() + 1;
         log.info("appendEntry 成功{}个节点", success);
-        if (success < config.getMajority() || entries.isEmpty()) {
+        if (success < config.getMajority()) {
             return false;
         }
 
-        context.getLogStorage().append(entries);
-        // 根据各节点响应的matchIndex，更新commitIndex
-        context.refreshCommitIndex(successFollower);
+        if (!entries.isEmpty()) {
+            context.getLogStorage().append(entries);
+            // 根据各节点响应的matchIndex，更新commitIndex
+            context.refreshCommitIndex(successFollower);
+        }
         return true;
     }
 
@@ -84,8 +88,8 @@ public class ClientAppendEntryHandler implements Handler {
         // 同步成功
         if (reply.isSuccess()) {
             log.info("followerId {} appendEntry成功", followerId);
-            context.getMatchIndex().put(followerId, reply.getMatchIndex());
-            context.getNextIndex().put(followerId, reply.getMatchIndex() + 1);
+            updateMatchIndex(context, followerId, reply.getMatchIndex());
+            updateNextIndex(context, followerId, reply.getMatchIndex() + 1);
             return true;
         }
         // 同步失败
@@ -97,9 +101,19 @@ public class ClientAppendEntryHandler implements Handler {
         }
         log.info("followerId {} appendEntry失败，日志未匹配", followerId);
         // 等待下次回溯重试
-        context.getNextIndex().put(followerId, context.getNextIndex().get(followerId) - 1);
-        context.getMatchIndex().put(followerId, context.getMatchIndex().get(followerId) - 1);
+        updateNextIndex(context, followerId, context.getNextIndex().get(followerId) - 1);
+        updateMatchIndex(context, followerId, context.getMatchIndex().get(followerId) - 1);
         return false;
+    }
+
+    private void updateNextIndex(Node context, Integer followerId, Integer value) {
+        log.info("followerId {} NextIndex 更新至{}", followerId, value);
+        context.getNextIndex().put(followerId, value);
+    }
+
+    private void updateMatchIndex(Node context, Integer followerId, Integer value) {
+        log.info("followerId {} MatchIndex 更新至{}", followerId, value);
+        context.getMatchIndex().put(followerId, value);
     }
 
     private boolean syncLog(Node context, Integer followerId) {

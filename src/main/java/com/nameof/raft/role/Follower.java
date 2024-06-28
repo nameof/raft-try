@@ -55,6 +55,7 @@ public class Follower implements State {
      * @return
      */
     private boolean candidateLogIsNewerOrEqual(Node context, Message.RequestVoteMessage message) {
+        log.info("LastLogTerm：{} {}， LastLogIndex：{} {}", message.getLastLogTerm(), context.getLastLogTerm(), message.getLastLogIndex(), context.getLastLogIndex());
         if (message.getLastLogTerm() > context.getLastLogTerm()) {
             return true;
         }
@@ -127,6 +128,11 @@ public class Follower implements State {
 
         log.info("AppendEntry执行完成");
         return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
+    }
+
+    @Override
+    public RoleType getRole() {
+        return RoleType.Follower;
     }
 
     private boolean logConflict(Node context, int index, int term) {

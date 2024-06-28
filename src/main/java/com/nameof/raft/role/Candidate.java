@@ -47,4 +47,9 @@ public class Candidate implements State {
 
         return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
     }
+
+    @Override
+    public RoleType getRole() {
+        return RoleType.Candidate;
+    }
 }

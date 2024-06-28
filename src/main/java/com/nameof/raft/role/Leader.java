@@ -31,7 +31,6 @@ public class Leader implements State {
         log.info("onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         // 请求任期小于等于当前任期，拒绝投票，并发送心跳
         if (message.getTerm() <= context.getCurrentTerm()) {
-            // TODO 发送心跳
             return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
         }
 
@@ -52,8 +51,12 @@ public class Leader implements State {
             context.setState(newState);
             return newState.onAppendEntry(context, message);
         } else {
-            // FIXME 发送心跳/发送error/忽略
-            return null;
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
+    }
+
+    @Override
+    public RoleType getRole() {
+        return RoleType.Leader;
     }
 }

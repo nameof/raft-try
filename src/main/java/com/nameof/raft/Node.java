@@ -79,8 +79,8 @@ public class Node {
 
     public void setState(State state) {
         this.state = state;
-        MDC.put("nodeRole", state.getClass().getSimpleName());
-        log.info("状态初始化：{}", state.getClass().getSimpleName());
+        MDC.put("nodeRole", state.getRole().name());
+        log.info("状态初始化：{}", state.getRole().name());
         this.state.init(this);
     }
 

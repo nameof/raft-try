@@ -9,4 +9,5 @@ public interface State {
     void init(Node context);
     Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message);
     Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message);
+    RoleType getRole();
 }
