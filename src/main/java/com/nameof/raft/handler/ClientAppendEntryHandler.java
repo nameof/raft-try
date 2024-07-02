@@ -65,7 +65,7 @@ public class ClientAppendEntryHandler implements Handler {
             }
         }
 
-        // FIXME 考虑大多数节点失联时（仅考虑失联，部分节点日志不一致不代表集群出现问题，只是需要同步，例如部分节点崩溃后恢复），可以启动选举超时定时器，以便重试几次无果后主动重新选举，这里暂时依靠其它follower来触发选举
+        // FIXME 考虑大多数节点失联时（仅考虑网络分区，部分节点日志不一致不代表集群出现问题，只是需要同步，例如部分节点崩溃后恢复），可以启动选举超时定时器，以便重试几次无果后主动重新选举，这里暂时依靠其它follower来触发选举
 
         int success = successFollower.size() + 1;
         log.info("appendEntry 成功{}个节点", success);

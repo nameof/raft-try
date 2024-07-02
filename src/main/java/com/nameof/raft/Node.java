@@ -74,7 +74,7 @@ public class Node {
         handler.start();
 
         // 监听网络请求
-        rpc.startServer();
+        rpc.startServer(this);
     }
 
     public void setState(State state) {
@@ -88,6 +88,9 @@ public class Node {
         this.currentTerm = currentTerm;
         this.stateStorage.setCurrentTerm(currentTerm);
         log.info("currentTerm更新：{}", currentTerm);
+
+        // 任期更新，voteFor更新
+        this.setVotedFor(null);
     }
 
     public void setVotedFor(Integer votedFor) {

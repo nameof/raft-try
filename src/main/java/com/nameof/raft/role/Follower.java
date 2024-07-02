@@ -22,29 +22,49 @@ public class Follower implements State {
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
         log.info("onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        Reply.RequestVoteReply reply = doRequestVote(context, message);
+        // 投赞成票后，重置选举超时定时器进行退避
+        if (reply.isVoteGranted()) {
+            context.resetElectionTimeoutTimer();
+        }
+        return reply;
+    }
 
-        // 请求任期小于当前任期，拒绝投票
+    private Reply.RequestVoteReply doRequestVote(Node context, Message.RequestVoteMessage message) {
+        // 请求任期小于当前任期，直接拒绝
         if (message.getTerm() < context.getCurrentTerm()) {
             log.info("拒绝投票");
-            return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
+            return voteReply(context, false);
         }
 
-        // TODO 任期内只投票一次
+        // 相同任期内只投票一次
+        if (message.getTerm() == context.getCurrentTerm()) {
+            if (context.getVotedFor() != null) {
+                return voteReply(context, context.getVotedFor().equals(message.getCandidateId()));
+            } else {
+                return voteReply(context, voteByLog(context, message));
+            }
+        } else {
+            // 请求任期大于当前任期，更新任期，已是follower无需切换状态
+            context.setCurrentTerm(message.getTerm());
+            return voteReply(context, voteByLog(context, message));
+        }
+    }
 
-        // 更新任期（请求任期大于当前任期），已是follower无需切换状态
-        context.setCurrentTerm(message.getTerm());
-
-        // FIXME 投票后，是否有必要重置选举超时定时器？
-        // 未投票或曾投票给该候选者，且候选者的日志至少和本地一样新
-        if ((context.getVotedFor() == null || context.getVotedFor().equals(message.getCandidateId()))
-                && candidateLogIsNewerOrEqual(context, message)) {
+    private boolean voteByLog(Node context, Message.RequestVoteMessage message) {
+        boolean shouldVote = candidateLogIsNewerOrEqual(context, message);
+        if (shouldVote) {
             context.setVotedFor(message.getCandidateId());
             log.info("日志符合，赞成投票");
-            return new Reply.RequestVoteReply(context.getCurrentTerm(), true);
+            return true;
         } else {
             log.info("日志较旧，拒绝投票");
-            return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
+            return false;
         }
+    }
+
+    private Reply.RequestVoteReply voteReply(Node context, boolean vote) {
+        return new Reply.RequestVoteReply(context.getCurrentTerm(), vote);
     }
 
     /**
