@@ -23,6 +23,9 @@ public class Leader implements State {
 
         // 停止选举超时定时器
         context.stopElectionTimeoutTimer();
+
+        // TODO 立即发起心跳，尽快得到最新的commitIndex
+
         context.startHeartbeatTimer();
     }
 

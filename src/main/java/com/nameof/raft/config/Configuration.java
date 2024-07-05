@@ -7,6 +7,7 @@ import cn.hutool.core.util.SystemPropsUtil;
 import cn.hutool.json.JSONUtil;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Getter
 @Setter
 public class Configuration {
@@ -62,6 +64,7 @@ public class Configuration {
             config.setNodeInfo(config.getNodes().stream().filter(n -> n.getId() == config.getId()).findFirst().get());
             config.setElectionTimeOut(RandomUtil.randomInt(config.getMinElectionTimeOut(), config.getMaxElectionTimeOut()));
 
+            log.info("current node: {}", config.getNodeInfo());
             return config;
         }
     }
