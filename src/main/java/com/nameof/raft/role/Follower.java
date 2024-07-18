@@ -6,6 +6,7 @@ import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 
 @Slf4j
 public class Follower implements State {
@@ -25,6 +26,7 @@ public class Follower implements State {
         Reply.RequestVoteReply reply = doRequestVote(context, message);
         // 投赞成票后，重置选举超时定时器进行退避
         if (reply.isVoteGranted()) {
+            context.setVotedFor(message.getCandidateId());
             context.resetElectionTimeoutTimer();
         }
         return reply;
@@ -98,8 +100,9 @@ public class Follower implements State {
         }
 
         // 更新任期并重置投票给的候选者（如果请求任期更大）
-        context.setCurrentTerm(message.getTerm());
-        context.setVotedFor(null);
+        if (message.getTerm() > context.getCurrentTerm()) {
+            context.setCurrentTerm(message.getTerm());
+        }
 
         // 重置选举超时定时器
         context.resetElectionTimeoutTimer();
@@ -112,7 +115,7 @@ public class Follower implements State {
                 context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
             }
 
-            return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
+            return appendEntryReplySuccess(context, newestLogIndex, message);
         }
 
         /**
@@ -147,6 +150,12 @@ public class Follower implements State {
         }
 
         log.info("AppendEntry执行完成");
+        return appendEntryReplySuccess(context, newestLogIndex, message);
+    }
+
+    @NotNull
+    private Reply.AppendEntryReply appendEntryReplySuccess(Node context, int newestLogIndex, Message.AppendEntryMessage message) {
+        context.setLeaderId(message.getLeaderId());
         return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
     }
 

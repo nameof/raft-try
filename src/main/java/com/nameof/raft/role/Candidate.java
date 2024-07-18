@@ -37,7 +37,7 @@ public class Candidate implements State {
 
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
-        if (message.getTerm() > context.getCurrentTerm()) {
+        if (message.getTerm() >= context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());
 
             State newState = new Follower();

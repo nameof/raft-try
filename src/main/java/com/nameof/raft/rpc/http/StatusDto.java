@@ -17,5 +17,6 @@ public class StatusDto {
     private RoleType currentRole;
     private int currentTerm;
     private Integer voteFor;
+    private Integer leaderId;
     private LogEntry lastLogEntry;
 }

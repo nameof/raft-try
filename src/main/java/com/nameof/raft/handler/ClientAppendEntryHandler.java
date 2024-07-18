@@ -35,9 +35,10 @@ public class ClientAppendEntryHandler implements Handler {
                 success = appendEntry(context, Collections.singletonList(logEntry));
             } catch (StateChangeException ignore) {
             }
+            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success));
+        } else {
+            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success, context.getLeaderId()));
         }
-        // TODO 重定向请求
-        rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success));
     }
 
     protected boolean appendEntry(Node context, List<LogEntry> entries) {
@@ -53,6 +54,7 @@ public class ClientAppendEntryHandler implements Handler {
             if (leaderLastLogIndex != matchIndex) {
                 if (!syncLog(context, followerId)) {
                     log.info("followerId {}同步日志失败", followerId);
+                    // TODO 节点日志未同步时，这里可以额外产生一个日志同步事件进行处理，但心跳足够频繁时，可以利用心跳同步
                     continue;
                 }
                 log.info("followerId {}同步日志成功", followerId);

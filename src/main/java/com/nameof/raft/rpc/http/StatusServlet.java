@@ -23,7 +23,8 @@ public class StatusServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        StatusDto statusDto = new StatusDto(context.getConfig().getNodeInfo(), context.getState().getRole(), context.getCurrentTerm(), context.getVotedFor(), context.getLogStorage().getLast());
+        StatusDto statusDto = new StatusDto(context.getConfig().getNodeInfo(), context.getState().getRole()
+                , context.getCurrentTerm(), context.getVotedFor(), context.getLeaderId(), context.getLogStorage().getLast());
 
         response.setContentType(ContentType.JSON.getValue());
         response.getWriter().println(JSONUtil.toJsonStr(statusDto));
