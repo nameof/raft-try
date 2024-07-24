@@ -126,8 +126,11 @@ public class ClientAppendEntryHandler implements Handler {
         }
 
         List<LogEntry> entries = context.getLogStorage().findByIndexAndAfter(nextIndex);
-        LogEntry log = context.getLogStorage().findByIndex(matchIndex);
-        int prevLogTerm = log == null ? -1 : log.getTerm();
+        int prevLogTerm = -1;
+        if (matchIndex >= 0) {
+            LogEntry log = context.getLogStorage().findByIndex(matchIndex);
+            prevLogTerm = log == null ? -1 : log.getTerm();
+        }
 
         Message.AppendEntryMessage message = buildMessage(context, entries, matchIndex, prevLogTerm);
         Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);

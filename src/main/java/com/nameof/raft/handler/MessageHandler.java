@@ -50,7 +50,7 @@ public class MessageHandler implements Runnable {
                 map.get(message.getType()).handle(context, message);
             } catch (InterruptedException ignored) {
             } catch (Exception e) {
-                log.error("消息处理失败：{}", message, e);
+                log.error("消息处理失败：" + message, e);
             }
         }
     }
