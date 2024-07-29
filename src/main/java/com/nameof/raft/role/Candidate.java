@@ -22,7 +22,7 @@ public class Candidate implements State {
 
     @Override
     public Reply.RequestVoteReply onRequestVote(Node context, Message.RequestVoteMessage message) {
-        log.info("onRequestVote-请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        log.info("onRequestVote 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         // 请求任期大于当前任期，转为follower
         if (message.getTerm() > context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());
@@ -32,11 +32,18 @@ public class Candidate implements State {
             return newState.onRequestVote(context, message);
         }
 
+        // 同任期选举，进行退避
+        if (message.getTerm() == context.getCurrentTerm()) {
+            context.resetElectionTimeoutTimer();
+            return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
+        }
+
         return new Reply.RequestVoteReply(context.getCurrentTerm(), false);
     }
 
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
+        log.info("onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         if (message.getTerm() >= context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());
 

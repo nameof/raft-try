@@ -6,7 +6,6 @@ import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Reply;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 
 @Slf4j
 public class Follower implements State {
@@ -153,7 +152,6 @@ public class Follower implements State {
         return appendEntryReplySuccess(context, newestLogIndex, message);
     }
 
-    @NotNull
     private Reply.AppendEntryReply appendEntryReplySuccess(Node context, int newestLogIndex, Message.AppendEntryMessage message) {
         context.setLeaderId(message.getLeaderId());
         return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
