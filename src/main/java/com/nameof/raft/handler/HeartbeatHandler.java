@@ -21,11 +21,11 @@ public class HeartbeatHandler extends ClientAppendEntryHandler {
         try {
             appendEntry(context, Collections.emptyList());
             log.info("心跳完成");
+
+            // 再次启动
+            context.startHeartbeatTimer();
         } catch (StateChangeException ignored) {
             log.warn("状态变更");
         }
-
-        // 再次启动
-        context.startHeartbeatTimer();
     }
 }
