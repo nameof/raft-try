@@ -1,8 +1,8 @@
 package com.nameof.raft.handler;
 
+import cn.hutool.core.lang.Tuple;
 import com.nameof.raft.Node;
 import com.nameof.raft.config.Configuration;
-import com.nameof.raft.config.NodeInfo;
 import com.nameof.raft.exception.StateChangeException;
 import com.nameof.raft.role.Candidate;
 import com.nameof.raft.role.Follower;
@@ -11,9 +11,12 @@ import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.MessageType;
 import com.nameof.raft.rpc.Reply;
 import com.nameof.raft.rpc.Rpc;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Map;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class ElectionTimeoutHandler implements Handler {
@@ -40,13 +43,15 @@ public class ElectionTimeoutHandler implements Handler {
         }
     }
 
+    @SneakyThrows
     private boolean requestVote(Node context) {
-        log.info("开始请求投票");
+        log.info("开始请求投票，CurrentTerm: {}", context.getCurrentTerm());
         Message.RequestVoteMessage message = buildMessage(context);
         int vote = 1;
-        for (Map.Entry<Integer, NodeInfo> entry : config.getNodeMap().entrySet()) {
-            Integer followerId = entry.getKey();
-            Reply.RequestVoteReply reply = rpc.requestVote(config.getNodeInfo(followerId), message);
+        for (CompletableFuture<Tuple> future : concurrentRequestVote(message)) {
+            Tuple tuple = future.get();
+            Integer followerId = tuple.get(0);
+            Reply.RequestVoteReply reply = tuple.get(1);
             if (reply == null) {
                 log.info("请求投票未成功：{}", followerId);
                 continue;
@@ -68,6 +73,14 @@ public class ElectionTimeoutHandler implements Handler {
             return true;
         }
         return false;
+    }
+
+    private List<CompletableFuture<Tuple>> concurrentRequestVote(Message.RequestVoteMessage message) {
+        return config.getNodeMap().keySet().stream()
+                .map(followerId -> CompletableFuture.supplyAsync(() -> {
+                    Reply.RequestVoteReply reply = rpc.requestVote(config.getNodeInfo(followerId), message);
+                    return new Tuple(followerId, reply);
+                })).collect(Collectors.toList());
     }
 
     private Message.RequestVoteMessage buildMessage(Node context) {

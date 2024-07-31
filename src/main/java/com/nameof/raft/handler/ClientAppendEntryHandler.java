@@ -1,8 +1,8 @@
 package com.nameof.raft.handler;
 
+import cn.hutool.core.lang.Tuple;
 import com.nameof.raft.Node;
 import com.nameof.raft.config.Configuration;
-import com.nameof.raft.config.NodeInfo;
 import com.nameof.raft.exception.StateChangeException;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.role.Follower;
@@ -11,7 +11,12 @@ import com.nameof.raft.rpc.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class ClientAppendEntryHandler implements Handler {
@@ -41,28 +46,17 @@ public class ClientAppendEntryHandler implements Handler {
         }
     }
 
+    @SneakyThrows
     protected boolean appendEntry(Node context, List<LogEntry> entries) {
         int leaderLastLogIndex = context.getLastLogIndex();
         int leaderLastLogTerm = context.getLastLogTerm();
+        List<CompletableFuture<Tuple>> futures = concurrentAppendEntry(context, entries, leaderLastLogIndex, leaderLastLogTerm);
 
-        // TODO 并发执行
         Set<Integer> successFollower = new HashSet<>();
-        for (Map.Entry<Integer, NodeInfo> entry : config.getNodeMap().entrySet()) {
-            Integer followerId = entry.getKey();
-            // 日志不一致，首先同步
-            int matchIndex = context.getMatchIndex().get(followerId);
-            if (leaderLastLogIndex != matchIndex) {
-                if (!syncLog(context, followerId)) {
-                    log.info("followerId {}同步日志失败", followerId);
-                    // TODO 节点日志未同步时，这里可以额外产生一个日志同步事件进行处理，但心跳足够频繁时，可以利用心跳同步
-                    continue;
-                }
-                log.info("followerId {}同步日志成功", followerId);
-            }
-
-            Message.AppendEntryMessage message = buildMessage(context, entries, leaderLastLogIndex, leaderLastLogTerm);
-            Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);
-            if (appendEntryReply(context, followerId, reply)) {
+        for (CompletableFuture<Tuple> future : futures) {
+            Tuple tuple = future.get();
+            Integer followerId = tuple.get(0);
+            if (appendEntryReply(context, followerId, tuple.get(1))) {
                 successFollower.add(followerId);
             }
         }
@@ -81,6 +75,25 @@ public class ClientAppendEntryHandler implements Handler {
             context.refreshCommitIndex(successFollower);
         }
         return true;
+    }
+
+    private List<CompletableFuture<Tuple>> concurrentAppendEntry(Node context, List<LogEntry> entries, int leaderLastLogIndex, int leaderLastLogTerm) {
+        return config.getNodeMap().keySet().stream()
+                .map(followerId -> CompletableFuture.supplyAsync(() -> {
+                    // 日志不一致，首先同步
+                    int matchIndex = context.getMatchIndex().get(followerId);
+                    if (leaderLastLogIndex != matchIndex) {
+                        log.info("followerId {}日志不一致（matchIndex: {}，当前prevLogIndex：{}），首先同步", followerId, matchIndex, leaderLastLogIndex);
+                        if (!syncLog(context, followerId)) {
+                            log.info("followerId {}同步日志失败", followerId);
+                            return new Tuple(followerId, null);
+                        }
+                        log.info("followerId {}同步日志成功", followerId);
+                    }
+                    Message.AppendEntryMessage message = buildMessage(context, entries, leaderLastLogIndex, leaderLastLogTerm);
+                    Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);
+                    return new Tuple(followerId, reply);
+                })).collect(Collectors.toList());
     }
 
     private boolean appendEntryReply(Node context, Integer followerId, Reply.AppendEntryReply reply) {
