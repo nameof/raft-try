@@ -25,9 +25,10 @@ public class HttpRpc implements Rpc {
 
     private final int port;
     private final BlockingQueue<Message> queue;
+    private final Configuration config = Configuration.get();
 
     public HttpRpc(BlockingQueue<Message> queue) {
-        this.port = Configuration.get().getNodeInfo().getPort();
+        this.port = config.getNodeInfo().getPort();
         this.queue = queue;
     }
 
@@ -53,7 +54,7 @@ public class HttpRpc implements Rpc {
     public Reply.AppendEntryReply appendEntry(NodeInfo info, Message.AppendEntryMessage message) {
         String result = null;
         try {
-            result = request(info, message);
+            result = request(info, message, config.getHeartbeatInterval() * 2);
         } catch (Exception e) {
             log.error("{} appendEntry调用失败: {}", info.getId(), e.getMessage());
             return null;
@@ -65,7 +66,7 @@ public class HttpRpc implements Rpc {
     public Reply.RequestVoteReply requestVote(NodeInfo info, Message.RequestVoteMessage message) {
         String result = null;
         try {
-            result = request(info, message);
+            result = request(info, message, config.getHeartbeatInterval());
         } catch (Exception e) {
             log.error("{} requestVote调用失败, {}", info.getId(), e.getMessage());
             return null;
@@ -89,8 +90,8 @@ public class HttpRpc implements Rpc {
         }
     }
 
-    private String request(NodeInfo info, Message message) {
+    private String request(NodeInfo info, Message message, int timeout) {
         String url = String.format("http://%s:%d", info.getIp(), info.getPort());
-        return HttpUtil.post(url, JSONUtil.toJsonStr(message), 3000);
+        return HttpUtil.post(url, JSONUtil.toJsonStr(message), timeout);
     }
 }

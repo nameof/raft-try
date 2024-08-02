@@ -122,11 +122,19 @@ public class ClientAppendEntryHandler implements Handler {
     }
 
     private void updateNextIndex(Node context, Integer followerId, Integer value) {
+        if (value < 0) {
+            log.info("followerId {} NextIndex", followerId);
+            return;
+        }
         log.info("followerId {} NextIndex 更新至{}", followerId, value);
         context.getNextIndex().put(followerId, value);
     }
 
     private void updateMatchIndex(Node context, Integer followerId, Integer value) {
+        if (value < -1) {
+            log.info("followerId {} MatchIndex不变", followerId);
+            return;
+        }
         log.info("followerId {} MatchIndex 更新至{}", followerId, value);
         context.getMatchIndex().put(followerId, value);
     }

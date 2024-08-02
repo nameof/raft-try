@@ -169,11 +169,13 @@ public class Follower implements State {
 
     private boolean isLogConsistent(Node context, int prevLogIndex, int prevLogTerm) {
         int lastLogIndex = context.getLastLogIndex();
+        log.info("prevLogIndex: {}, prevLogTerm: {}, myPrevLogIndex: {}", prevLogIndex, prevLogTerm, lastLogIndex);
         if (lastLogIndex == -1 || prevLogIndex == -1) {
             return lastLogIndex == prevLogIndex;
         }
-        LogEntry log = context.getLogStorage().findByIndex(prevLogIndex);
-        int myPrevLogTerm = log == null ? -1 : log.getTerm();
+        LogEntry entry = context.getLogStorage().findByIndex(prevLogIndex);
+        int myPrevLogTerm = entry == null ? -1 : entry.getTerm();
+        log.info("myPrevLogTerm: {}", myPrevLogTerm);
         return myPrevLogTerm == prevLogTerm;
     }
 
