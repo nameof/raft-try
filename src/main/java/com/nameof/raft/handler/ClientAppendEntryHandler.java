@@ -153,6 +153,7 @@ public class ClientAppendEntryHandler implements Handler {
             prevLogTerm = log == null ? -1 : log.getTerm();
         }
 
+        log.info("发送{}个日志", entries.size());
         Message.AppendEntryMessage message = buildMessage(context, entries, matchIndex, prevLogTerm);
         Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);
         return appendEntryReply(context, followerId, reply);

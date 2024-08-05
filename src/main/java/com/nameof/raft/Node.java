@@ -4,7 +4,7 @@ import com.nameof.raft.config.Configuration;
 import com.nameof.raft.handler.MessageHandler;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.log.LogStorage;
-import com.nameof.raft.log.MemoryLogStorage;
+import com.nameof.raft.log.MapDBLogStorage;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.State;
 import com.nameof.raft.rpc.Message;
@@ -45,7 +45,7 @@ public class Node {
 
     private State state;
     private final Configuration config;
-    private final LogStorage logStorage = new MemoryLogStorage();
+    private final LogStorage logStorage = new MapDBLogStorage();
     private final StateStorage stateStorage = new StateStorage();
 
     private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();

@@ -1,9 +1,12 @@
 package com.nameof.raft.log;
 
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class MemoryLogStorage implements LogStorage {
 
     private ArrayList<LogEntry> data = new ArrayList<>();
@@ -18,6 +21,10 @@ public class MemoryLogStorage implements LogStorage {
 
     @Override
     public List<LogEntry> findByIndexAndAfter(int index) {
+        if (index >= data.size()) {
+            log.warn("index is greater than data size");
+            return new ArrayList<>();
+        }
         return data.subList(index, data.size());
     }
 
