@@ -17,7 +17,7 @@
       "port": 8889
     }
   ],
-  "heartbeatInterval": 1000,
-  "minElectionTimeOut": 5000,
-  "maxElectionTimeOut": 10000
+  "heartbeatInterval": 200,
+  "minElectionTimeOut": 800,
+  "maxElectionTimeOut": 2000
 }

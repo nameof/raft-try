@@ -13,10 +13,9 @@ import com.nameof.raft.role.RoleType;
 import com.nameof.raft.rpc.http.StatusDto;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -40,8 +39,47 @@ public class RaftTest {
 
     @After
     public void clean() {
-        for (Map.Entry<Integer, Process> entry : processes.entrySet()) {
-            entry.getValue().destroy();
+
+    }
+
+    @Rule
+    public TestWatcher watcher = new TestWatcher() {
+        @Override
+        protected void succeeded(Description description) {
+            for (Map.Entry<Integer, Process> entry : processes.entrySet()) {
+                entry.getValue().destroy();
+            }
+        }
+
+        @Override
+        protected void failed(Throwable e, Description description) {
+            for (Map.Entry<Integer, Process> entry : processes.entrySet()) {
+                entry.getValue().destroy();
+            }
+        }
+    };
+
+    @Test
+    public void test() {
+        Map<String, Runnable> functions = new HashMap<String, Runnable>(){{
+            put("appendEntry", RaftTest.this::appendEntry);
+            put("concurrentAppendEntry", RaftTest.this::concurrentAppendEntry);
+            put("killOneAndStart", RaftTest.this::killOneAndStart);
+            put("hackElection", RaftTest.this::hackElection);
+            put("killLeaderAndStart", RaftTest.this::killLeaderAndStart);
+            put("killMultipleAndStart", RaftTest.this::killMultipleAndStart);
+            put("networkPartition", RaftTest.this::networkPartition);
+            put("testUnstableLeader", RaftTest.this::testUnstableLeader);
+        }};
+
+        int totalIterations = 10;
+        ArrayList<Map.Entry<String, Runnable>> list = new ArrayList<>(functions.entrySet());
+        for (int i = 0; i < totalIterations; i++) {
+            Collections.shuffle(list);
+            for (Map.Entry<String, Runnable> entry : list) {
+                log.info("execute: {}", entry.getKey());
+                entry.getValue().run();
+            }
         }
     }
 
@@ -58,38 +96,17 @@ public class RaftTest {
         processes.put(id, process);
     }
 
-    @Test
-    public void test() throws Exception {
-        Map<String, Runnable> functions = new HashMap<String, Runnable>(){{
-                put("appendEntry", RaftTest.this::appendEntry);
-                put("concurrentAppendEntry", RaftTest.this::concurrentAppendEntry);
-                put("killOneAndStart", RaftTest.this::killOneAndStart);
-                put("hackElection", RaftTest.this::hackElection);
-                put("killLeaderAndStart", RaftTest.this::killLeaderAndStart);
-        }};
-        for (int i = 0; i < 20; i++) {
-            Map.Entry<String, Runnable> entry = functions.entrySet().stream().skip(RandomUtil.randomInt(functions.size())).findFirst().get();
-
-            log.info(entry.getKey());
-
-            entry.getValue().run();
-
-            Thread.sleep(config.getMaxElectionTimeOut());
-
-            checkStatus();
-        }
-    }
-
     @SneakyThrows
     private NodeInfo findLeader() {
         for (int i = 0; i < 3; i++) {
             for (NodeInfo node : config.getNodes()) {
                 StatusDto status = getStatus(node);
                 if (status != null && status.getCurrentRole() == RoleType.Leader) {
+                    log.info("当前leader: {}", status.getNodeInfo().getId());
                     return node;
                 }
             }
-            Thread.sleep(config.getMaxElectionTimeOut() + 3000);
+            Thread.sleep(config.getMaxElectionTimeOut() + 5000);
         }
         return null;
     }
@@ -104,8 +121,10 @@ public class RaftTest {
 
         String result = HttpUtil.post(String.format("http://%s:%d", leader.getIp(), leader.getPort()), JSONUtil.toJsonStr(obj));
         Assert.assertNotNull(result);
-        System.out.println(result);
+        log.info("appendEntry result: {}", result);
         Assert.assertTrue(JSONUtil.parseObj(result).getBool("success"));
+
+        checkStatus();
     }
 
     @SneakyThrows
@@ -117,6 +136,7 @@ public class RaftTest {
                     this.appendEntry();
                     return true;
                 } catch (Exception e) {
+                    log.error("appendEntry", e);
                     return false;
                 }
             }));
@@ -124,41 +144,70 @@ public class RaftTest {
         for (CompletableFuture<Boolean> future : all) {
             Assert.assertTrue(future.get());
         }
+        checkStatus();
     }
 
     @SneakyThrows
     public void killOneAndStart() {
         int i = RandomUtil.randomInt(3) + 1;
-        Process process = processes.get(i);
-        process.destroy();
-        process.waitFor();
+        kill(i);
 
         Thread.sleep(config.getMaxElectionTimeOut());
 
         start(i);
 
         Thread.sleep(config.getHeartbeatInterval() * 2L);
+        checkStatus();
+    }
 
+    @SneakyThrows
+    public void killMultipleAndStart() {
+        List<Integer> crashedNodes = new ArrayList<>();
+        for (int i = 0; i < config.getMajority(); i++) {
+            int nodeId = RandomUtil.randomInt(config.getNodes().size());
+            while (crashedNodes.contains(nodeId)) {
+                nodeId = RandomUtil.randomInt(config.getNodes().size());
+            }
+            crashedNodes.add(nodeId);
+            kill(nodeId);
+        }
+
+        Thread.sleep(config.getMaxElectionTimeOut() * 2L);
+
+        for (int nodeId : crashedNodes) {
+            start(nodeId);
+        }
+
+        Thread.sleep(config.getMaxElectionTimeOut() * 2L);
         checkStatus();
     }
 
     @SneakyThrows
     public void killLeaderAndStart() {
         NodeInfo initialLeader = findLeader();
-        Process process = processes.get(initialLeader.getId());
-        process.destroy();
-        process.waitFor();
+        Assert.assertNotNull(initialLeader);
+        kill(initialLeader.getId());
 
-        Thread.sleep(config.getMaxElectionTimeOut());
+        Thread.sleep(config.getMaxElectionTimeOut() * 2L);
 
         NodeInfo newLeader = findLeader();
         Assert.assertNotNull(newLeader);
         Assert.assertNotEquals(initialLeader.getId(), newLeader.getId());
+        log.info("new leader: {}", newLeader.getId());
 
         start(initialLeader.getId());
-        Thread.sleep(config.getMaxElectionTimeOut());
+        Thread.sleep(config.getHeartbeatInterval() * 2L);
 
         checkStatus();
+    }
+
+    private void kill(int id) throws InterruptedException {
+        log.info("kill: {}", id);
+        Process process = processes.remove(id);
+        if (process != null) {
+            process.destroy();
+            process.waitFor();
+        }
     }
 
     @SneakyThrows
@@ -174,33 +223,97 @@ public class RaftTest {
         obj.set("lastLogIndex", 1);
         obj.set("lastLogTerm", status.getCurrentTerm());
         HttpUtil.post(String.format("http://%s:%d", nodeInfo.getIp(), nodeInfo.getPort()), JSONUtil.toJsonStr(obj));
+
+        Thread.sleep(config.getMaxElectionTimeOut() * 2L);
+
+        checkStatus();
     }
 
-    public void checkStatus() throws InterruptedException {
+    @SneakyThrows
+    public void networkPartition() {
+        NodeInfo leader = findLeader();
+        Assert.assertNotNull(leader);
+
+        // Simulate network partition
+        for (NodeInfo node : config.getNodes()) {
+            if (node.getId() != leader.getId()) {
+                kill(node.getId());
+            }
+        }
+
+        Thread.sleep(config.getMaxElectionTimeOut());
+
+        // Check if the leader still holds the leadership
+        NodeInfo currentLeader = findLeader();
+        Assert.assertNotNull(leader);
+        Assert.assertEquals(leader.getId(), currentLeader.getId());
+
+        // Reconnect the partitioned nodes
+        for (NodeInfo node : config.getNodes()) {
+            if (node.getId() != leader.getId()) {
+                start(node.getId());
+            }
+        }
+
+        Thread.sleep(config.getMaxElectionTimeOut() * 2L);
+        checkStatus();
+    }
+
+    @SneakyThrows
+    public void testUnstableLeader() {
+        NodeInfo initialLeader = findLeader();
+        Assert.assertNotNull(initialLeader);
+
+        for (int i = 0; i < 5; i++) {
+            // Simulate network instability by killing and restarting the leader
+            kill(initialLeader.getId());
+            Thread.sleep(config.getMaxElectionTimeOut());
+            start(initialLeader.getId());
+            Thread.sleep(config.getElectionTimeOut() * 2L);
+
+            NodeInfo currentLeader = findLeader();
+            Assert.assertNotNull(currentLeader);
+            initialLeader = currentLeader;
+        }
+
+        checkStatus();
+    }
+
+    @SneakyThrows
+    public void checkStatus() {
+        boolean isConsistent = true;
+        List<LogEntry> data = null;
         for (int i = 0; i < 3; i++) {
-            List<LogEntry> data = new ArrayList<>();
-            List<NodeInfo> nodes = config.getNodes();
-            for (int j = 0; j < nodes.size(); j++) {
-                NodeInfo nodeInfo = nodes.get(j);
+            data = new ArrayList<>();
+            for (NodeInfo nodeInfo : config.getNodes()) {
                 StatusDto status = getStatus(nodeInfo);
                 data.add(status == null ? null : status.getLastLogEntry());
             }
 
-            if (Objects.equals(data.get(0), data.get(1)) && Objects.equals(data.get(2), data.get(1))) {
-                return;
+            isConsistent = true;
+            LogEntry first = data.get(0);
+            for (LogEntry entry : data) {
+                if (!Objects.equals(first, entry)) {
+                    isConsistent = false;
+                    break;
+                }
             }
-            Thread.sleep(3000);
+            if (isConsistent) {
+                break;
+            }
+            Thread.sleep(config.getMaxElectionTimeOut());
         }
-        throw new IllegalStateException("状态不一致");
+        log.info("各节点最后日志：{}", JSONUtil.toJsonStr(data));
+        Assert.assertTrue("状态不一致", isConsistent);
+        log.info("状态一致");
     }
 
     private StatusDto getStatus(NodeInfo nodeInfo) {
         try {
             String result = HttpUtil.get(String.format("http://%s:%d/status", nodeInfo.getIp(), nodeInfo.getPort()));
-            StatusDto statusDto = JSONUtil.toBean(result, StatusDto.class);
-            return statusDto;
+            return JSONUtil.toBean(result, StatusDto.class);
         } catch (Exception e) {
-            log.error("Failed to get status from node {}:{}", nodeInfo.getIp(), nodeInfo.getPort(), e);
+            log.error("Failed to get status from node {}:{}：{}", nodeInfo.getIp(), nodeInfo.getPort(), e.getMessage());
         }
         return null;
     }
