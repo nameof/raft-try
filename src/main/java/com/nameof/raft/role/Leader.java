@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class Leader implements State {
+public class Leader implements Role {
     @Override
     public void init(Node context) {
         Configuration config = context.getConfig();
@@ -39,10 +39,10 @@ public class Leader implements State {
 
         // 更新任期（请求任期大于当前任期），切换状态
         context.setCurrentTerm(message.getTerm());
-        State newState = new Follower();
-        context.setState(newState);
+        Role newRole = new Follower();
+        context.setRole(newRole);
 
-        return newState.onRequestVote(context, message);
+        return newRole.onRequestVote(context, message);
     }
 
     @Override
@@ -50,9 +50,9 @@ public class Leader implements State {
         log.info("onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
         if (message.getTerm() > context.getCurrentTerm()) {
             // 降级为Follower
-            State newState = new Follower();
-            context.setState(newState);
-            return newState.onAppendEntry(context, message);
+            Role newRole = new Follower();
+            context.setRole(newRole);
+            return newRole.onAppendEntry(context, message);
         } else {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }

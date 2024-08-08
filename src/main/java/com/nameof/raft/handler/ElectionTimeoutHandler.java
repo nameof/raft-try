@@ -3,7 +3,7 @@ package com.nameof.raft.handler;
 import cn.hutool.core.lang.Tuple;
 import com.nameof.raft.Node;
 import com.nameof.raft.config.Configuration;
-import com.nameof.raft.exception.StateChangeException;
+import com.nameof.raft.exception.RoleChangeException;
 import com.nameof.raft.role.Candidate;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.Leader;
@@ -30,12 +30,12 @@ public class ElectionTimeoutHandler implements Handler {
 
     @Override
     public void handle(Node context, Message message) {
-        context.setState(new Candidate());
+        context.setRole(new Candidate());
 
         boolean success = false;
         try {
             success = requestVote(context);
-        } catch (StateChangeException ignore) {
+        } catch (RoleChangeException ignore) {
         }
 
         if (!success) {
@@ -62,14 +62,14 @@ public class ElectionTimeoutHandler implements Handler {
             } else {
                 log.info("选票被拒绝：{}", followerId);
                 if (reply.getTerm() > context.getCurrentTerm()) {
-                    context.setState(new Follower());
-                    throw new StateChangeException();
+                    context.setRole(new Follower());
+                    throw new RoleChangeException();
                 }
             }
         }
         log.info("获得选票：{}个", vote);
         if (vote >= config.getMajority()) {
-            context.setState(new Leader());
+            context.setRole(new Leader());
             return true;
         }
         return false;

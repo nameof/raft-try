@@ -1,7 +1,7 @@
 package com.nameof.raft.handler;
 
 import com.nameof.raft.Node;
-import com.nameof.raft.exception.StateChangeException;
+import com.nameof.raft.exception.RoleChangeException;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Rpc;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +24,7 @@ public class HeartbeatHandler extends ClientAppendEntryHandler {
 
             // 再次启动
             context.startHeartbeatTimer();
-        } catch (StateChangeException ignored) {
+        } catch (RoleChangeException ignored) {
             log.warn("状态变更");
         }
     }

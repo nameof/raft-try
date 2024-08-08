@@ -7,7 +7,7 @@ import com.nameof.raft.rpc.Reply;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class Candidate implements State {
+public class Candidate implements Role {
     @Override
     public void init(Node context) {
         context.setNextIndex(null);
@@ -27,9 +27,9 @@ public class Candidate implements State {
         if (message.getTerm() > context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());
 
-            State newState = new Follower();
-            context.setState(newState);
-            return newState.onRequestVote(context, message);
+            Role newRole = new Follower();
+            context.setRole(newRole);
+            return newRole.onRequestVote(context, message);
         }
 
         // 同任期选举，进行退避
@@ -47,9 +47,9 @@ public class Candidate implements State {
         if (message.getTerm() >= context.getCurrentTerm()) {
             context.setCurrentTerm(message.getTerm());
 
-            State newState = new Follower();
-            context.setState(newState);
-            return newState.onAppendEntry(context, message);
+            Role newRole = new Follower();
+            context.setRole(newRole);
+            return newRole.onAppendEntry(context, message);
         }
 
         return new Reply.AppendEntryReply(context.getCurrentTerm(), false);

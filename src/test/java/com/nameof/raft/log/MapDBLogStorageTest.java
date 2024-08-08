@@ -1,25 +1,52 @@
 package com.nameof.raft.log;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import cn.hutool.core.io.FileUtil;
+import org.junit.*;
+import org.junit.rules.TemporaryFolder;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.HTreeMap;
+import org.mapdb.Serializer;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
 public class MapDBLogStorageTest {
+
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
+
     MapDBLogStorage logStorage;
 
     @Before
     public void setUp() {
-        logStorage = new MapDBLogStorage();
+        logStorage = new MapDBLogStorage(tempFolder.getRoot());
     }
 
     @After
     public void after() {
         logStorage.clear();
         logStorage.close();
+    }
+
+    @Test
+    public void t() {
+        DB db = DBMaker
+                .fileDB(new File(FileUtil.getTmpDir(), "aaaa"))
+                .make();
+        HTreeMap<Integer, String> map = db
+                .hashMap("collectionName", Serializer.INTEGER, Serializer.STRING)
+                .createOrOpen();
+
+        map.put(1,"one");
+        map.put(2,"two");
+        System.out.println(map.get(1));
+        db.rollback();
+
+        System.out.println(map.get(1));
+
+        db.close();
     }
 
     @Test

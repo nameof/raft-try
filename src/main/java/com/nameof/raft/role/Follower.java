@@ -8,7 +8,7 @@ import com.nameof.raft.rpc.Reply;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class Follower implements State {
+public class Follower implements Role {
 
     @Override
     public void init(Node context) {

@@ -21,7 +21,10 @@ public class MapDBLogStorage implements LogStorage {
     private final IndexTreeList<String> data;
 
     public MapDBLogStorage() {
-        File parentDir = FileUtil.getTmpDir();
+        this(FileUtil.getTmpDir());
+    }
+
+    public MapDBLogStorage(File parentDir) {
         parentDir = new File(parentDir, "raft-try" + File.separator + config.getId());
         parentDir.mkdirs();
         this.db = DBMaker

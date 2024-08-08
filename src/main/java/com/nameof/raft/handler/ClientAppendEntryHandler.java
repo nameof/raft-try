@@ -3,7 +3,7 @@ package com.nameof.raft.handler;
 import cn.hutool.core.lang.Tuple;
 import com.nameof.raft.Node;
 import com.nameof.raft.config.Configuration;
-import com.nameof.raft.exception.StateChangeException;
+import com.nameof.raft.exception.RoleChangeException;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.RoleType;
@@ -34,11 +34,11 @@ public class ClientAppendEntryHandler implements Handler {
     public void handle(Node context, Message message) {
         InternalMessage.ClientAppendEntryMessage m = (InternalMessage.ClientAppendEntryMessage) message;
         boolean success = false;
-        if (context.getState().getRole() == RoleType.Leader) {
+        if (context.getRole().getRole() == RoleType.Leader) {
             LogEntry logEntry = new LogEntry(context.getCurrentTerm(), m.getData());
             try {
                 success = appendEntry(context, Collections.singletonList(logEntry));
-            } catch (StateChangeException ignore) {
+            } catch (RoleChangeException ignore) {
             }
             rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success));
         } else {
@@ -52,6 +52,7 @@ public class ClientAppendEntryHandler implements Handler {
         int leaderLastLogTerm = context.getLastLogTerm();
         List<CompletableFuture<Tuple>> futures = concurrentAppendEntry(context, entries, leaderLastLogIndex, leaderLastLogTerm);
 
+        // TODO 大多数返回成功时，leader即刻返回客户端结果，不用等待所有follower
         Set<Integer> successFollower = new HashSet<>();
         for (CompletableFuture<Tuple> future : futures) {
             Tuple tuple = future.get();
@@ -111,8 +112,8 @@ public class ClientAppendEntryHandler implements Handler {
         // 任期落后，转为follower
         if (reply.getTerm() > context.getCurrentTerm()) {
             log.info("followerId {} appendEntry失败，任期落后", followerId);
-            context.setState(new Follower());
-            throw new StateChangeException();
+            context.setRole(new Follower());
+            throw new RoleChangeException();
         }
         log.info("followerId {} appendEntry失败，日志未匹配", followerId);
         // 等待下次回溯重试
@@ -146,6 +147,7 @@ public class ClientAppendEntryHandler implements Handler {
             return true;
         }
 
+        // TODO 对落后的follower分批同步，而不是一次性同步所有日志
         List<LogEntry> entries = context.getLogStorage().findByIndexAndAfter(nextIndex);
         int prevLogTerm = -1;
         if (matchIndex >= 0) {

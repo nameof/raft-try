@@ -304,8 +304,8 @@ public class RaftTest {
             Thread.sleep(config.getMaxElectionTimeOut());
         }
         log.info("各节点最后日志：{}", JSONUtil.toJsonStr(data));
-        Assert.assertTrue("状态不一致", isConsistent);
-        log.info("状态一致");
+        Assert.assertTrue("集群状态不一致", isConsistent);
+        log.info("集群状态一致");
     }
 
     private StatusDto getStatus(NodeInfo nodeInfo) {
