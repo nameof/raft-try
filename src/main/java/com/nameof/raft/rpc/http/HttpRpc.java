@@ -41,6 +41,7 @@ public class HttpRpc implements Rpc {
 
         handler.addServlet(new ServletHolder(new CoreServlet(queue)), "/");
         handler.addServlet(new ServletHolder(new StatusServlet(context)), "/status");
+        handler.addServlet(new ServletHolder(new LogServlet(context)), "/logs");
 
         try {
             server.start();
@@ -76,7 +77,10 @@ public class HttpRpc implements Rpc {
 
     @Override
     public void sendReply(Reply reply) {
-        Map<String, Object> extra = reply.getExtra();
+        Map<String, Object> extra = reply.getClientExtra();
+        if (extra == null) {
+            return;
+        }
         AsyncContext asyncContext = (AsyncContext) extra.get("asyncContext");
         HttpServletResponse response = (HttpServletResponse) extra.get("response");
         response.setStatus(200);
