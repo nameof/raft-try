@@ -2,11 +2,12 @@ package com.nameof.raft;
 
 import com.nameof.raft.config.Configuration;
 import com.nameof.raft.handler.MessageHandler;
+import com.nameof.raft.handler.StateMachineHandler;
 import com.nameof.raft.log.LogEntry;
 import com.nameof.raft.log.LogStorage;
 import com.nameof.raft.log.MapDBLogStorage;
 import com.nameof.raft.role.Follower;
-import com.nameof.raft.role.State;
+import com.nameof.raft.role.Role;
 import com.nameof.raft.rpc.Message;
 import com.nameof.raft.rpc.Rpc;
 import com.nameof.raft.rpc.http.HttpRpc;
@@ -17,6 +18,8 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -43,7 +46,7 @@ public class Node {
     @Setter
     private Map<Integer, Integer> matchIndex; // 对于每一台服务器，已知的已经复制到该服务器的最高日志条目的索引（初始值为0，单调递增）
 
-    private State state;
+    private Role role;
     private final Configuration config;
     private final LogStorage logStorage = new MapDBLogStorage();
     private final StateStorage stateStorage = new StateStorage();
@@ -54,8 +57,11 @@ public class Node {
     private final MessageHandler handler;
 
     private final Rpc rpc;
+    private final StateMachineHandler stateMachineHandler;
 
-    public Node() {
+    public Node(StateMachineHandler stateMachineHandler) {
+        this.stateMachineHandler = stateMachineHandler;
+
         config = Configuration.get();
         id = config.getId();
 
@@ -71,7 +77,7 @@ public class Node {
 
     public void start() {
         // 初始化并启动选举超时定时器
-        setState(new Follower());
+        setRole(new Follower());
 
         // 启动事件处理器
         handler.start();
@@ -80,11 +86,11 @@ public class Node {
         rpc.startServer(this);
     }
 
-    public void setState(State state) {
-        this.state = state;
-        MDC.put("nodeRole", state.getRole().name());
-        log.info("状态初始化：{}", state.getRole().name());
-        this.state.init(this);
+    public void setRole(Role role) {
+        this.role = role;
+        MDC.put("nodeRole", role.getRole().name());
+        log.info("状态初始化：{}", role.getRole().name());
+        this.role.init(this);
     }
 
     public void setCurrentTerm(int currentTerm) {
@@ -102,10 +108,23 @@ public class Node {
         log.info("votedFor更新：{}", votedFor);
     }
 
-    public void setCommitIndex(int commitIndex) {
-        log.info("commitIndex更新：{}", commitIndex);
-        this.commitIndex = commitIndex;
-        // TODO commit log
+    public void setCommitIndex(int newCommitIndex) {
+        List<LogEntry> entries = new ArrayList<>();
+        int start = this.lastApplied == 0 ? 0 : this.lastApplied + 1;
+        for (int i = start; i <= newCommitIndex; i++) {
+            entries.add(logStorage.findByIndex(i));
+        }
+        try {
+            stateMachineHandler.apply(newCommitIndex, entries);
+        } catch (Exception e) {
+            log.error("apply log error", e);
+            System.exit(1);
+        }
+
+        log.info("commitIndex更新：{}", newCommitIndex);
+
+        this.lastApplied = newCommitIndex;
+        this.commitIndex = newCommitIndex;
     }
 
     public int getLastLogTerm() {
