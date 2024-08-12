@@ -18,7 +18,7 @@ public class AppendEntryHandler implements Handler {
     @Override
     public void handle(Node context, Message message) {
         Reply.AppendEntryReply reply = context.getRole().onAppendEntry(context, (Message.AppendEntryMessage) message);
-        reply.setExtra(message.getExtra());
+        reply.setClientExtra(message.getClientExtra());
         rpc.sendReply(reply);
     }
 }

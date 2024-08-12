@@ -5,6 +5,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
+import java.util.List;
+
 @SuperBuilder
 @NoArgsConstructor
 public class InternalMessage extends Message {
@@ -24,6 +26,6 @@ public class InternalMessage extends Message {
     @SuperBuilder
     @NoArgsConstructor
     public static class ClientAppendEntryMessage extends InternalMessage {
-        private String data;
+        private List<String> log;
     }
 }

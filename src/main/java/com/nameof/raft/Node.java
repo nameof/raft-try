@@ -1,6 +1,7 @@
 package com.nameof.raft;
 
 import com.nameof.raft.config.Configuration;
+import com.nameof.raft.handler.DefaultStateMachineHandler;
 import com.nameof.raft.handler.MessageHandler;
 import com.nameof.raft.handler.StateMachineHandler;
 import com.nameof.raft.log.LogEntry;
@@ -58,6 +59,10 @@ public class Node {
 
     private final Rpc rpc;
     private final StateMachineHandler stateMachineHandler;
+
+    public Node() {
+        this(new DefaultStateMachineHandler());
+    }
 
     public Node(StateMachineHandler stateMachineHandler) {
         this.stateMachineHandler = stateMachineHandler;

@@ -16,7 +16,7 @@ public class RequestVoteHandler implements Handler {
     @Override
     public void handle(Node context, Message message) {
         Reply.RequestVoteReply reply = context.getRole().onRequestVote(context, (Message.RequestVoteMessage) message);
-        reply.setExtra(message.getExtra());
+        reply.setClientExtra(message.getClientExtra());
         rpc.sendReply(reply);
     }
 }

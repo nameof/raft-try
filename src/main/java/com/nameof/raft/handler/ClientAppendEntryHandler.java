@@ -11,7 +11,6 @@ import com.nameof.raft.rpc.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,14 +34,14 @@ public class ClientAppendEntryHandler implements Handler {
         InternalMessage.ClientAppendEntryMessage m = (InternalMessage.ClientAppendEntryMessage) message;
         boolean success = false;
         if (context.getRole().getRole() == RoleType.Leader) {
-            LogEntry logEntry = new LogEntry(context.getCurrentTerm(), m.getData());
             try {
-                success = appendEntry(context, Collections.singletonList(logEntry));
+                List<LogEntry> entries = m.getLog().stream().map(log -> new LogEntry(context.getCurrentTerm(), log)).collect(Collectors.toList());
+                success = appendEntry(context, entries);
             } catch (RoleChangeException ignore) {
             }
-            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success));
+            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getClientExtra(), success));
         } else {
-            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getExtra(), success, context.getLeaderId()));
+            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getClientExtra(), success, context.getLeaderId()));
         }
     }
 

@@ -11,7 +11,7 @@ public class Reply {
 
     @Setter
     @Getter
-    private transient Map<String, Object> extra;
+    private transient Map<String, Object> clientExtra;
 
     @Getter
     @Setter

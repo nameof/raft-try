@@ -52,7 +52,7 @@ public class CoreServlet extends HttpServlet {
         JSONObject obj = JSONUtil.parseObj(ServletUtil.getBody(request));
         MessageType type = MessageType.valueOf(obj.getStr("type"));
         Message message = (Message) JSONUtil.toBean(obj, this.typeMap.get(type));
-        message.setExtra(map);
+        message.setClientExtra(map);
         queue.put(message);
     }
 }

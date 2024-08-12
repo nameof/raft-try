@@ -117,7 +117,7 @@ public class RaftTest {
 
         JSONObject obj = new JSONObject();
         obj.set("type", "ClientAppendEntry");
-        obj.set("data", IdUtil.simpleUUID());
+        obj.set("log", Arrays.asList(IdUtil.simpleUUID(), IdUtil.simpleUUID()));
 
         String result = HttpUtil.post(String.format("http://%s:%d", leader.getIp(), leader.getPort()), JSONUtil.toJsonStr(obj));
         Assert.assertNotNull(result);

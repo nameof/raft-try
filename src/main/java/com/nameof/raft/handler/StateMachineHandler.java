@@ -6,4 +6,5 @@ import java.util.Collection;
 
 public interface StateMachineHandler {
     void apply(int commitIndex, Collection<LogEntry>entries);
+    void failed(Collection<LogEntry> entries);
 }
