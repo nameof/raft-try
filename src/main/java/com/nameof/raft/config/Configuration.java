@@ -2,6 +2,7 @@ package com.nameof.raft.config;
 
 
 import cn.hutool.core.io.IoUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.SystemPropsUtil;
 import cn.hutool.json.JSONUtil;
 import lombok.Data;
@@ -75,6 +76,12 @@ public class Configuration {
     public static int calculateTimeout(int minTimeout, int maxTimeout, int totalNodes, int nodeId) {
         if (nodeId < 1 || nodeId > totalNodes) {
             throw new IllegalArgumentException("Invalid Node ID");
+        }
+        if (minTimeout >= maxTimeout) {
+            throw new IllegalArgumentException("Invalid Timeout Range");
+        }
+        if (totalNodes == 1) {
+            return RandomUtil.randomInt(minTimeout, maxTimeout);
         }
 
         // 每个节点的时间间隔
