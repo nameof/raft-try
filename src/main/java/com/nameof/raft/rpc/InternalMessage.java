@@ -27,5 +27,6 @@ public class InternalMessage extends Message {
     @NoArgsConstructor
     public static class ClientAppendEntryMessage extends InternalMessage {
         private List<String> log;
+        private String rawReqId;
     }
 }

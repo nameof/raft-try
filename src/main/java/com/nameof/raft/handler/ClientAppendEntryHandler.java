@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -33,15 +34,24 @@ public class ClientAppendEntryHandler implements Handler {
     public void handle(Node context, Message message) {
         InternalMessage.ClientAppendEntryMessage m = (InternalMessage.ClientAppendEntryMessage) message;
         boolean success = false;
+        Integer redirectTo = null;
+
+        List<LogEntry> entries = m.getLog().stream().map(log -> new LogEntry(context.getCurrentTerm(), log, m.getRawReqId())).collect(Collectors.toList());
         if (context.getRole().getRole() == RoleType.Leader) {
             try {
-                List<LogEntry> entries = m.getLog().stream().map(log -> new LogEntry(context.getCurrentTerm(), log)).collect(Collectors.toList());
                 success = appendEntry(context, entries);
             } catch (RoleChangeException ignore) {
             }
-            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getClientExtra(), success));
         } else {
-            rpc.sendReply(new Reply.ClientAppendEntryReply(message.getClientExtra(), success, context.getLeaderId()));
+            redirectTo = context.getLeaderId();
+        }
+
+        Map<String, Object> clientExtra = message.getClientExtra();
+        boolean responseNotCallback = clientExtra != null;
+        if (responseNotCallback) {
+            rpc.sendReply(new Reply.ClientAppendEntryReply(clientExtra, success, redirectTo));
+        } else if (!success) {
+            context.failedAppendEntry(entries);
         }
     }
 

@@ -45,11 +45,6 @@ public class Reply {
         private boolean success;
         private Integer redirectTo;
 
-        public ClientAppendEntryReply(Map<String, Object> extra, boolean success) {
-            super(extra);
-            this.success = success;
-        }
-
         public ClientAppendEntryReply(Map<String, Object> extra, boolean success, Integer redirectTo) {
             super(extra);
             this.success = success;

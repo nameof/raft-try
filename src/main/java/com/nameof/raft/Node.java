@@ -2,6 +2,7 @@ package com.nameof.raft;
 
 import com.nameof.raft.config.Configuration;
 import com.nameof.raft.handler.DefaultStateMachineHandler;
+import com.nameof.raft.exception.NotLeaderException;
 import com.nameof.raft.handler.MessageHandler;
 import com.nameof.raft.handler.StateMachineHandler;
 import com.nameof.raft.log.LogEntry;
@@ -9,13 +10,17 @@ import com.nameof.raft.log.LogStorage;
 import com.nameof.raft.log.MapDBLogStorage;
 import com.nameof.raft.role.Follower;
 import com.nameof.raft.role.Role;
+import com.nameof.raft.role.RoleType;
+import com.nameof.raft.rpc.InternalMessage;
 import com.nameof.raft.rpc.Message;
+import com.nameof.raft.rpc.MessageType;
 import com.nameof.raft.rpc.Rpc;
 import com.nameof.raft.rpc.http.HttpRpc;
 import com.nameof.raft.timer.ElectionTimeoutTimer;
 import com.nameof.raft.timer.HeartbeatTimer;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 
@@ -91,6 +96,40 @@ public class Node {
         rpc.startServer(this);
     }
 
+    @SneakyThrows
+    public void appendEntry(List<String> log, String rawReqId) {
+        if (this.getRole().getRole() != RoleType.Leader) {
+            throw new NotLeaderException(this.leaderId);
+        }
+        InternalMessage.ClientAppendEntryMessage msg = InternalMessage.ClientAppendEntryMessage.builder()
+                .type(MessageType.ClientAppendEntry)
+                .log(log)
+                .rawReqId(rawReqId).build();
+        this.queue.put(msg);
+    }
+
+    public void successAppendEntry(int newCommitIndex) {
+        List<LogEntry> entries = new ArrayList<>();
+        int start = this.lastApplied == 0 ? 0 : this.lastApplied + 1;
+        for (int i = start; i <= newCommitIndex; i++) {
+            entries.add(logStorage.findByIndex(i));
+        }
+        try {
+            stateMachineHandler.apply(newCommitIndex, entries);
+        } catch (Exception e) {
+            log.error("apply log error", e);
+            System.exit(1);
+        }
+    }
+
+    public void failedAppendEntry(List<LogEntry> entries) {
+        try {
+            this.stateMachineHandler.failed(entries);
+        } catch (Exception e) {
+            log.error("stateMachineHandler.failed error", e);
+        }
+    }
+
     public void setRole(Role role) {
         this.role = role;
         MDC.put("nodeRole", role.getRole().name());
@@ -114,17 +153,7 @@ public class Node {
     }
 
     public void setCommitIndex(int newCommitIndex) {
-        List<LogEntry> entries = new ArrayList<>();
-        int start = this.lastApplied == 0 ? 0 : this.lastApplied + 1;
-        for (int i = start; i <= newCommitIndex; i++) {
-            entries.add(logStorage.findByIndex(i));
-        }
-        try {
-            stateMachineHandler.apply(newCommitIndex, entries);
-        } catch (Exception e) {
-            log.error("apply log error", e);
-            System.exit(1);
-        }
+        successAppendEntry(newCommitIndex);
 
         log.info("commitIndex更新：{}", newCommitIndex);
 

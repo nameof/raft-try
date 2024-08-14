@@ -40,10 +40,10 @@ public class MemoryLogStorageTest {
     public void testAppend() throws Exception {
         memoryLogStorage.append(Collections.singletonList(new LogEntry()));
 
-        int result = memoryLogStorage.append(0, Collections.singletonList(new LogEntry(1, null)));
+        int result = memoryLogStorage.append(0, Collections.singletonList(new LogEntry(1, null, "")));
         Assert.assertEquals(0, result);
         Assert.assertEquals(1, memoryLogStorage.findByIndexAndAfter(0).size());
 
-        Assert.assertEquals(new LogEntry(1, null), memoryLogStorage.findByIndex(0));
+        Assert.assertEquals(new LogEntry(1, null, ""), memoryLogStorage.findByIndex(0));
     }
 }

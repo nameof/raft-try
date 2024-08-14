@@ -10,4 +10,5 @@ import lombok.*;
 public class LogEntry {
     private int term;
     private String data;
+    private String rawReqId;
 }

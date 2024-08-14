@@ -10,7 +10,7 @@ import java.util.Collection;
 public class DefaultStateMachineHandler implements StateMachineHandler {
     @Override
     public void apply(int commitIndex, Collection<LogEntry> entries) {
-        log.info("日志apply：{}", JSONUtil.toJsonStr(entries));
+        log.info("日志提交：{}", JSONUtil.toJsonStr(entries));
     }
 
     @Override
