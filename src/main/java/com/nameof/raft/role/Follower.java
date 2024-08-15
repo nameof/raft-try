@@ -91,8 +91,16 @@ public class Follower implements Role {
      */
     @Override
     public Reply.AppendEntryReply onAppendEntry(Node context, Message.AppendEntryMessage message) {
-
         log.info("onAppendEntry 请求任期{}，当前任期{}", message.getTerm(), context.getCurrentTerm());
+        Reply.AppendEntryReply reply = doAppendEntry(context, message);
+        // 日志通过时，才是有效的心跳消息，重置选举超时定时器
+        if (reply.isSuccess()) {
+            context.resetElectionTimeoutTimer();
+        }
+        return reply;
+    }
+
+    private Reply.AppendEntryReply doAppendEntry(Node context, Message.AppendEntryMessage message) {
         if (message.getTerm() < context.getCurrentTerm()) {
             log.info("拒绝追加日志");
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
@@ -103,21 +111,8 @@ public class Follower implements Role {
             context.setCurrentTerm(message.getTerm());
         }
 
-        // 重置选举超时定时器
-        context.resetElectionTimeoutTimer();
-
-        if (message.getEntries().isEmpty()) {
-            int newestLogIndex = context.getLastLogIndex();
-
-            // 心跳响应也需要更新commitIndex
-            if (message.getLeaderCommit() > context.getCommitIndex()) {
-                context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
-            }
-
-            return appendEntryReplySuccess(context, newestLogIndex, message);
-        }
-
         /**
+         * 验证日志一致性
          * Reply false if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm ($5.3)
          * If an existing entry conflicts with a new one (same index but different terms), delete the existing entry and all thatfollow it (§5.3)
          * Append any new entries not already in the log
@@ -128,33 +123,37 @@ public class Follower implements Role {
             return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
         }
 
-        int newLogStartIndex = message.getPrevLogIndex() + 1;
-        LogEntry first = message.getEntries().get(0);
-        if (logConflict(context, newLogStartIndex, first.getTerm())) {
-            log.info("删除冲突位置及之后的日志{}", newLogStartIndex);
-            context.getLogStorage().deleteAfter(newLogStartIndex);
-        }
+        boolean empty = message.getEntries().isEmpty(); // empty表明是心跳请求，或新leader上任首次同步日志
+        int lastLogIndex = context.getLastLogIndex();
+        if (!empty) {
+            // 开始尝试追加日志
+            int newLogStartIndex = message.getPrevLogIndex() + 1;
+            LogEntry first = message.getEntries().get(0);
+            if (logConflict(context, newLogStartIndex, first.getTerm())) {
+                log.info("删除冲突位置及之后的日志{}", newLogStartIndex);
+                context.getLogStorage().deleteAfter(newLogStartIndex);
+            }
 
-        // 追加新日志
-        // 保证幂等，不直接追加，而是在newLogStartIndex处开始追加
-        int newestLogIndex = appendEntriesFromRequest(context, newLogStartIndex, message);
-        if (newestLogIndex == -1) {
-            log.info("日志不一致，拒绝追加日志");
-            return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+            // 追加新日志，保证幂等，不直接追加，而是在newLogStartIndex处开始追加
+            lastLogIndex = appendEntriesFromRequest(context, newLogStartIndex, message);
+            if (lastLogIndex == -1) {
+                log.info("日志不一致，拒绝追加日志");
+                return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+            }
         }
 
         // 更新commitIndex
         if (message.getLeaderCommit() > context.getCommitIndex()) {
-            context.setCommitIndex(Math.min(message.getLeaderCommit(), newestLogIndex));
+            context.setCommitIndex(Math.min(message.getLeaderCommit(), lastLogIndex));
         }
 
         log.info("AppendEntry执行完成");
-        return appendEntryReplySuccess(context, newestLogIndex, message);
+        return appendEntryReplySuccess(context, lastLogIndex, message);
     }
 
-    private Reply.AppendEntryReply appendEntryReplySuccess(Node context, int newestLogIndex, Message.AppendEntryMessage message) {
+    private Reply.AppendEntryReply appendEntryReplySuccess(Node context, int lastLogIndex, Message.AppendEntryMessage message) {
         context.setLeaderId(message.getLeaderId());
-        return new Reply.AppendEntryReply(context.getCurrentTerm(), true, newestLogIndex);
+        return new Reply.AppendEntryReply(context.getCurrentTerm(), true, lastLogIndex);
     }
 
     @Override

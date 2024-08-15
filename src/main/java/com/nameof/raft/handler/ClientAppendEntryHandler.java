@@ -11,10 +11,7 @@ import com.nameof.raft.rpc.*;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -92,8 +89,9 @@ public class ClientAppendEntryHandler implements Handler {
                 .map(followerId -> CompletableFuture.supplyAsync(() -> {
                     // 日志不一致，首先同步
                     int matchIndex = context.getMatchIndex().get(followerId);
+                    int nextIndex = context.getNextIndex().get(followerId);
                     if (leaderLastLogIndex != matchIndex) {
-                        log.info("followerId {}日志不一致（matchIndex: {}，当前prevLogIndex：{}），首先同步", followerId, matchIndex, leaderLastLogIndex);
+                        log.info("followerId {}日志不一致（matchIndex: {}，nextIndex：{}，当前prevLogIndex：{}），首先同步", followerId, matchIndex, nextIndex, leaderLastLogIndex);
                         if (!syncLog(context, followerId)) {
                             log.info("followerId {}同步日志失败", followerId);
                             return new Tuple(followerId, null);
@@ -126,6 +124,7 @@ public class ClientAppendEntryHandler implements Handler {
         }
         log.info("followerId {} appendEntry失败，日志未匹配", followerId);
         // 等待下次回溯重试
+        // TODO 快速回溯日志同步点，提升可用性
         updateNextIndex(context, followerId, context.getNextIndex().get(followerId) - 1);
         updateMatchIndex(context, followerId, context.getMatchIndex().get(followerId) - 1);
         return false;
@@ -150,22 +149,38 @@ public class ClientAppendEntryHandler implements Handler {
     }
 
     private boolean syncLog(Node context, Integer followerId) {
+        int lastLogIndex = context.getLastLogIndex();
         int nextIndex = context.getNextIndex().get(followerId);
         int matchIndex = context.getMatchIndex().get(followerId);
-        if (matchIndex == context.getLastLogIndex()) {
+        if (matchIndex == lastLogIndex) {
             return true;
         }
 
         // TODO 对落后的follower分批同步，而不是一次性同步所有日志
-        List<LogEntry> entries = context.getLogStorage().findByIndexAndAfter(nextIndex);
-        int prevLogTerm = -1;
-        if (matchIndex >= 0) {
-            LogEntry log = context.getLogStorage().findByIndex(matchIndex);
-            prevLogTerm = log == null ? -1 : log.getTerm();
+
+        int prevLogIndex;
+        int prevLogTerm;
+        List<LogEntry> entries;
+        if (lastLogIndex == -1) { // 无日志数据
+            entries = Collections.emptyList();
+            prevLogIndex = -1;
+            prevLogTerm = -1;
+        } else {
+            if (nextIndex > lastLogIndex) {
+                // nextIndex超过所有日志数据（可能是follower日志并未落后，只是matchIndex需要同步，例如新leader上线，nextIndex = lastLogIndex + 1）
+                entries = Collections.emptyList();
+                prevLogIndex = lastLogIndex;
+                prevLogTerm = context.getLastLogTerm();
+            } else {
+                entries = context.getLogStorage().findByIndexAndAfter(nextIndex);
+                prevLogIndex = nextIndex - 1;
+                LogEntry entry = context.getLogStorage().findByIndex(prevLogIndex);
+                prevLogTerm = entry == null ? -1 : entry.getTerm();
+            }
         }
 
         log.info("发送{}个日志", entries.size());
-        Message.AppendEntryMessage message = buildMessage(context, entries, matchIndex, prevLogTerm);
+        Message.AppendEntryMessage message = buildMessage(context, entries, prevLogIndex, prevLogTerm);
         Reply.AppendEntryReply reply = rpc.appendEntry(config.getNodeInfo(followerId), message);
         return appendEntryReply(context, followerId, reply);
     }

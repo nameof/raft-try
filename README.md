@@ -20,8 +20,12 @@ Java实现的raft协议层，采用单线程控制模型，不包含StateMachine
 
 ### StateMachine层
 `Node`类创建时可指定`StateMachineHandler`回调实现，在回调处理中执行自定义的日志解析和状态变更，例如KV数据库
-- StateMachine层 -> raft层：调用`Node.start`发起AppendEntry请求。
-- raft层 -> StateMachine层：通过`StateMachineHandler`回调传递日志Commit消息。StateMachine层再执行日志apply，需自行保证幂等性
+- StateMachine层 -> raft层：调用`Node.appendEntry`发起AppendEntry请求。
+- raft层 -> StateMachine层：通过`StateMachineHandler`回调传递AppendEntry结果。StateMachine层再执行日志apply或失败处理，需自行保证幂等性
+
+### 相关实现
+- 日志持久化存储：MapDB
+- 网络通信：基于Jetty的REST调用，也可以实现`com.nameof.raft.rpc.Rpc`接口，扩展其它的RPC通信方式
 
 ### 高级优化，尚未实现
 - 并行处理
