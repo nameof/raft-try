@@ -4,6 +4,7 @@ package com.nameof.raft.log;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -13,7 +14,9 @@ public class MemoryLogStorage implements LogStorage {
 
     @Override
     public LogEntry findByIndex(int index) {
-        if (index >= data.size()) {
+        index -= 1;
+        if (index >= data.size() || index < 0) {
+            log.warn("invalid index {}", index);
             return null;
         }
         return data.get(index);
@@ -21,15 +24,17 @@ public class MemoryLogStorage implements LogStorage {
 
     @Override
     public List<LogEntry> findByIndexAndAfter(int index) {
-        if (index >= data.size()) {
+        index -= 1;
+        if (index >= data.size() || index < 0) {
             log.warn("index is greater than data size");
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
         return data.subList(index, data.size());
     }
 
     @Override
     public int deleteAfter(int index) {
+        index -= 1;
         int size = data.size();
         if (index >= size) {
             return 0;
@@ -48,14 +53,15 @@ public class MemoryLogStorage implements LogStorage {
 
     @Override
     public int append(int index, List<LogEntry> logs) {
+        int realIndex = index - 1;
         int size = data.size();
-        if (index < size) {
+        if (realIndex < size) {
             deleteAfter(index);
-        } else if (index > size) {
+        } else if (realIndex > size) {
             return -1;
         }
         append(logs);
-        return data.size() - 1;
+        return data.size();
     }
 
     @Override
@@ -69,6 +75,6 @@ public class MemoryLogStorage implements LogStorage {
 
     @Override
     public int lastIndex() {
-        return data.size() - 1;
+        return data.size();
     }
 }

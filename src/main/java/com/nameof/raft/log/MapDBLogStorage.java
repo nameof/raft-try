@@ -1,6 +1,5 @@
 package com.nameof.raft.log;
 
-import cn.hutool.core.io.FileUtil;
 import cn.hutool.json.JSONUtil;
 import com.nameof.raft.config.Configuration;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +9,7 @@ import org.mapdb.IndexTreeList;
 import org.mapdb.Serializer;
 
 import java.io.File;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,15 +19,11 @@ public class MapDBLogStorage implements LogStorage {
     private final DB db;
     private final IndexTreeList<String> data;
 
-    public MapDBLogStorage() {
-        this(FileUtil.getTmpDir());
-    }
-
-    public MapDBLogStorage(File parentDir) {
-        parentDir = new File(parentDir, "raft-try" + File.separator + config.getId());
-        parentDir.mkdirs();
+    public MapDBLogStorage(File dataDir) {
+        dataDir = new File(dataDir, "" + config.getId());
+        dataDir.mkdirs();
         this.db = DBMaker
-                .fileDB(new File(parentDir, "data"))
+                .fileDB(new File(dataDir, "data"))
                 .checksumHeaderBypass()
                 .make();
         this.data = db.indexTreeList("logs", Serializer.STRING).createOrOpen();
@@ -38,7 +33,9 @@ public class MapDBLogStorage implements LogStorage {
 
     @Override
     public LogEntry findByIndex(int index) {
-        if (index >= data.size()) {
+        index -= 1;
+        if (index >= data.size() || index < 0) {
+            log.warn("invalid index {}", index);
             return null;
         }
         return obj(data.get(index));
@@ -46,9 +43,10 @@ public class MapDBLogStorage implements LogStorage {
 
     @Override
     public List<LogEntry> findByIndexAndAfter(int index) {
-        if (index >= data.size()) {
+        index -= 1;
+        if (index >= data.size() || index < 0) {
             log.error("index is greater than data size");
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
         return subList(index, data.size());
     }
@@ -60,6 +58,7 @@ public class MapDBLogStorage implements LogStorage {
 
     @Override
     public int deleteAfter(int index) {
+        index -= 1;
         int size = data.size();
         if (index >= size) {
             return 0;
@@ -75,20 +74,21 @@ public class MapDBLogStorage implements LogStorage {
     @Override
     public int append(List<LogEntry> logs) {
         this.data.addAll(logs.stream().map(this::string).collect(Collectors.toList()));
-        return this.data.size() - 1;
+        return this.data.size();
     }
 
     @Override
     public int append(int index, List<LogEntry> logs) {
+        int realIndex = index - 1;
         int size = this.data.size();
-        if (index < size) {
+        if (realIndex < size) {
             deleteAfter(index);
-        } else if (index > size) {
+        } else if (realIndex > size) {
             log.error("append refuse, index: {}, current size: {}", index, size);
             return -1;
         }
         append(logs);
-        return data.size() - 1;
+        return data.size();
     }
 
     @Override
@@ -102,7 +102,7 @@ public class MapDBLogStorage implements LogStorage {
 
     @Override
     public int lastIndex() {
-        return data.size() - 1;
+        return data.size();
     }
 
     private LogEntry obj(String s) {

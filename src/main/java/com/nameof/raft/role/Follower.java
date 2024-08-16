@@ -55,7 +55,6 @@ public class Follower implements Role {
     private boolean voteByLog(Node context, Message.RequestVoteMessage message) {
         boolean shouldVote = candidateLogIsNewerOrEqual(context, message);
         if (shouldVote) {
-            context.setVotedFor(message.getCandidateId());
             log.info("日志符合，赞成投票");
             return true;
         } else {
@@ -169,11 +168,11 @@ public class Follower implements Role {
     private boolean isLogConsistent(Node context, int prevLogIndex, int prevLogTerm) {
         int lastLogIndex = context.getLastLogIndex();
         log.info("prevLogIndex: {}, prevLogTerm: {}, myPrevLogIndex: {}", prevLogIndex, prevLogTerm, lastLogIndex);
-        if (lastLogIndex == -1 || prevLogIndex == -1) {
+        if (lastLogIndex == 0 || prevLogIndex == 0) {
             return lastLogIndex == prevLogIndex;
         }
         LogEntry entry = context.getLogStorage().findByIndex(prevLogIndex);
-        int myPrevLogTerm = entry == null ? -1 : entry.getTerm();
+        int myPrevLogTerm = entry == null ? 0 : entry.getTerm();
         log.info("myPrevLogTerm: {}", myPrevLogTerm);
         return myPrevLogTerm == prevLogTerm;
     }

@@ -13,12 +13,8 @@ public class StateStorage {
     @Getter
     private final File parent;
 
-    public StateStorage() {
-        this(FileUtil.getTmpDir());
-    }
-
-    public StateStorage(File parentDir) {
-        this.parent = new File(parentDir, "raft-try" + File.separator + config.getId());
+    public StateStorage(File dataDir) {
+        this.parent = new File(dataDir, "" + config.getId());
         this.parent.mkdirs();
     }
 
