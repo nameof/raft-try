@@ -1,6 +1,7 @@
 package com.nameof.raft.config;
 
 
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.SystemPropsUtil;
@@ -8,6 +9,7 @@ import cn.hutool.json.JSONUtil;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -51,7 +53,12 @@ public class Configuration {
     }
 
     private static Configuration loadConfig() throws IOException {
-        try (InputStream inputStream = Configuration.class.getResourceAsStream("/config.json")) {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        InputStream inputStream = classLoader.getResourceAsStream("config.json");
+        try {
+            if (inputStream == null) {
+                inputStream = Configuration.class.getResourceAsStream("/config.default.json");
+            }
             Configuration config = JSONUtil.toBean(IoUtil.read(inputStream, StandardCharsets.UTF_8), Configuration.class);
 
             int id = SystemPropsUtil.getInt(NODE_ID_CONFIG_KEY, config.getId());
@@ -66,6 +73,8 @@ public class Configuration {
             config.setElectionTimeOut(timeout);
             log.info("current ElectionTimeOut: {}", timeout);
             return config;
+        } finally {
+            IoUtil.close(inputStream);
         }
     }
 
@@ -88,5 +97,9 @@ public class Configuration {
         int interval = (maxTimeout - minTimeout) / (totalNodes - 1);
 
         return minTimeout + (nodeId - 1) * interval;
+    }
+
+    public static File getDefaultDataDir() {
+        return new File(FileUtil.getTmpDir(), "raft-try");
     }
 }

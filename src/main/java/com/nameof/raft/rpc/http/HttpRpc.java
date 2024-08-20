@@ -45,7 +45,6 @@ public class HttpRpc implements Rpc {
 
         try {
             server.start();
-            server.join();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

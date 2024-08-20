@@ -1,7 +1,7 @@
 package com.nameof.raft;
 
+import cn.hutool.core.lang.Validator;
 import com.nameof.raft.config.Configuration;
-import com.nameof.raft.handler.DefaultStateMachineHandler;
 import com.nameof.raft.exception.NotLeaderException;
 import com.nameof.raft.handler.MessageHandler;
 import com.nameof.raft.handler.StateMachineHandler;
@@ -24,6 +24,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -54,8 +55,8 @@ public class Node {
 
     private Role role;
     private final Configuration config;
-    private final LogStorage logStorage = new MapDBLogStorage();
-    private final StateStorage stateStorage = new StateStorage();
+    private final LogStorage logStorage;
+    private final StateStorage stateStorage;
 
     private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
     private final ElectionTimeoutTimer electionTimeoutTimer = new ElectionTimeoutTimer(queue);
@@ -65,12 +66,13 @@ public class Node {
     private final Rpc rpc;
     private final StateMachineHandler stateMachineHandler;
 
-    public Node() {
-        this(new DefaultStateMachineHandler());
-    }
+    public Node(File dataDir, StateMachineHandler stateMachineHandler) {
+        Validator.validateNotNull(dataDir, "dataDir is null");
+        Validator.validateNotNull(stateMachineHandler, "stateMachineHandler is null");
 
-    public Node(StateMachineHandler stateMachineHandler) {
         this.stateMachineHandler = stateMachineHandler;
+        this.logStorage = new MapDBLogStorage(dataDir);
+        this.stateStorage = new StateStorage(dataDir);
 
         config = Configuration.get();
         id = config.getId();
@@ -110,9 +112,11 @@ public class Node {
 
     public void successAppendEntry(int newCommitIndex) {
         List<LogEntry> entries = new ArrayList<>();
-        int start = this.lastApplied == 0 ? 0 : this.lastApplied + 1;
-        for (int i = start; i <= newCommitIndex; i++) {
+        for (int i = (this.lastApplied + 1); i <= newCommitIndex; i++) {
             entries.add(logStorage.findByIndex(i));
+        }
+        if (entries.isEmpty()) {
+            return;
         }
         try {
             stateMachineHandler.apply(newCommitIndex, entries);
@@ -163,7 +167,7 @@ public class Node {
 
     public int getLastLogTerm() {
         LogEntry last = logStorage.getLast();
-        return last == null ? -1 : last.getTerm();
+        return last == null ? 0 : last.getTerm();
     }
 
     public int getLastLogIndex() {
