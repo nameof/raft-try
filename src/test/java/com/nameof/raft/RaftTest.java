@@ -1,5 +1,6 @@
 package com.nameof.raft;
 
+import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.RuntimeUtil;
@@ -17,6 +18,7 @@ import org.junit.*;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -30,6 +32,8 @@ public class RaftTest {
     @SneakyThrows
     @Before
     public void init() {
+        FileUtil.del(Configuration.getDefaultDataDir());
+
         processes = new HashMap<>();
         for (int i = 0; i < config.getNodes().size(); i++) {
             start(config.getNodes().get(i).getId());
@@ -37,25 +41,25 @@ public class RaftTest {
         Thread.sleep(config.getMaxElectionTimeOut());
     }
 
-    @After
+    @SneakyThrows
     public void clean() {
-
+        for (Map.Entry<Integer, Process> entry : processes.entrySet()) {
+            entry.getValue().destroy();
+            entry.getValue().waitFor();
+        }
+        FileUtil.del(Configuration.getDefaultDataDir());
     }
 
     @Rule
     public TestWatcher watcher = new TestWatcher() {
         @Override
         protected void succeeded(Description description) {
-            for (Map.Entry<Integer, Process> entry : processes.entrySet()) {
-                entry.getValue().destroy();
-            }
+            clean();
         }
 
         @Override
         protected void failed(Throwable e, Description description) {
-            for (Map.Entry<Integer, Process> entry : processes.entrySet()) {
-                entry.getValue().destroy();
-            }
+            clean();
         }
     };
 
@@ -70,6 +74,7 @@ public class RaftTest {
             put("killMultipleAndStart", RaftTest.this::killMultipleAndStart);
             put("networkPartition", RaftTest.this::networkPartition);
             put("testUnstableLeader", RaftTest.this::testUnstableLeader);
+            put("killOneAndClearData", RaftTest.this::killOneAndClearData);
         }};
 
         int totalIterations = 10;
@@ -86,9 +91,6 @@ public class RaftTest {
     @SneakyThrows
     private void start(int id) {
         String cmd = String.format("java -DRAFT_NODE_ID=%d -DLOG_DIR=%s -jar %s", id, logDir + id, jarPath);
-        if (false) {
-            cmd = "cmd /c start cmd /k " + cmd;
-        }
         Process process = RuntimeUtil.exec(cmd);
         process.getErrorStream().close();
         process.getInputStream().close();
@@ -158,6 +160,22 @@ public class RaftTest {
         start(i);
 
         Thread.sleep(config.getHeartbeatInterval() * 2L);
+        checkStatus();
+    }
+
+    @SneakyThrows
+    public void killOneAndClearData() {
+        int i = RandomUtil.randomInt(3) + 1;
+        kill(i);
+
+        Thread.sleep(config.getMaxElectionTimeOut());
+
+        FileUtil.del(new File(Configuration.getDefaultDataDir(), "" + i));
+
+        start(i);
+
+        // 等待足够长时间，确保节点日志重新同步
+        Thread.sleep(config.getMaxElectionTimeOut() * 5L);
         checkStatus();
     }
 
