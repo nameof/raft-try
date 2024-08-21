@@ -119,7 +119,8 @@ public class Follower implements Role {
          */
         if (!isLogConsistent(context, message.getPrevLogIndex(), message.getPrevLogTerm())) {
             log.info("日志不一致，拒绝追加日志");
-            return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+            // 日志不一致时返回LastLogIndex，供Leader参考
+            return new Reply.AppendEntryReply(context.getCurrentTerm(), false, context.getLastLogIndex());
         }
 
         boolean empty = message.getEntries().isEmpty(); // empty表明是心跳请求，或新leader上任首次同步日志
@@ -137,7 +138,8 @@ public class Follower implements Role {
             lastLogIndex = appendEntriesFromRequest(context, newLogStartIndex, message);
             if (lastLogIndex == -1) {
                 log.info("日志不一致，拒绝追加日志");
-                return new Reply.AppendEntryReply(context.getCurrentTerm(), false);
+                // 日志不一致时返回LastLogIndex，供Leader参考
+                return new Reply.AppendEntryReply(context.getCurrentTerm(), false, context.getLastLogIndex());
             }
         }
 
@@ -165,16 +167,16 @@ public class Follower implements Role {
         return entry != null && entry.getTerm() != term;
     }
 
-    private boolean isLogConsistent(Node context, int prevLogIndex, int prevLogTerm) {
-        int lastLogIndex = context.getLastLogIndex();
-        log.info("prevLogIndex: {}, prevLogTerm: {}, myPrevLogIndex: {}", prevLogIndex, prevLogTerm, lastLogIndex);
-        if (lastLogIndex == 0 || prevLogIndex == 0) {
-            return lastLogIndex == prevLogIndex;
+    private boolean isLogConsistent(Node context, int leaderPrevLogIndex, int leaderPrevLogTerm) {
+        int myPrevLogIndex = context.getLastLogIndex();
+        log.info("leaderPrevLogIndex: {}, leaderPrevLogTerm: {}, myPrevLogIndex: {}", leaderPrevLogIndex, leaderPrevLogTerm, myPrevLogIndex);
+        if (myPrevLogIndex == 0 || leaderPrevLogIndex == 0) {
+            return myPrevLogIndex == leaderPrevLogIndex;
         }
-        LogEntry entry = context.getLogStorage().findByIndex(prevLogIndex);
+        LogEntry entry = context.getLogStorage().findByIndex(leaderPrevLogIndex);
         int myPrevLogTerm = entry == null ? 0 : entry.getTerm();
         log.info("myPrevLogTerm: {}", myPrevLogTerm);
-        return myPrevLogTerm == prevLogTerm;
+        return myPrevLogTerm == leaderPrevLogTerm;
     }
 
     private int appendEntriesFromRequest(Node context, int index, Message.AppendEntryMessage message) {

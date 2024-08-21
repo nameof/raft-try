@@ -123,16 +123,28 @@ public class ClientAppendEntryHandler implements Handler {
             throw new RoleChangeException();
         }
         log.info("followerId {} appendEntry失败，日志未匹配", followerId);
-        // 等待下次回溯重试
-        // TODO 快速回溯日志同步点，提升可用性
-        updateNextIndex(context, followerId, context.getNextIndex().get(followerId) - 1);
-        updateMatchIndex(context, followerId, context.getMatchIndex().get(followerId) - 1);
+        // 尝试使用follower的lastLogIndex快速回溯日志同步点，避免follower日志落后过多回溯太慢
+        // 原nextIndex - 1：逐个回溯日志
+        // lastLogIndex + 1：直接对齐到follower的日志位置
+        // 取二者中的最小值
+        Integer lastLogIndex = reply.getMatchIndex();
+        int nextIndex = Math.min(context.getNextIndex().get(followerId) - 1, lastLogIndex + 1);
+        updateNextIndex(context, followerId, nextIndex);
         return false;
     }
 
+    public int fastBacktrace(Node context, Integer followerId) {
+        int nextIndex = context.getNextIndex().get(followerId);
+        int times = 0;
+        int step = (int) Math.pow(2, times);
+        nextIndex -= step;
+        // times++;
+        return nextIndex > 0 ? nextIndex : 1;
+    }
+
     private void updateNextIndex(Node context, Integer followerId, Integer value) {
-        if (value < 0) {
-            log.info("followerId {} NextIndex", followerId);
+        if (value < 1) {
+            log.info("followerId {} NextIndex不变", followerId);
             return;
         }
         log.info("followerId {} NextIndex 更新至{}", followerId, value);
@@ -140,7 +152,7 @@ public class ClientAppendEntryHandler implements Handler {
     }
 
     private void updateMatchIndex(Node context, Integer followerId, Integer value) {
-        if (value < -1) {
+        if (value < 0) {
             log.info("followerId {} MatchIndex不变", followerId);
             return;
         }
@@ -161,21 +173,25 @@ public class ClientAppendEntryHandler implements Handler {
         int prevLogIndex;
         int prevLogTerm;
         List<LogEntry> entries;
-        if (lastLogIndex == -1) { // 无日志数据
+        if (lastLogIndex == 0) { // 无日志数据
             entries = Collections.emptyList();
-            prevLogIndex = -1;
-            prevLogTerm = -1;
+            prevLogIndex = 0;
+            prevLogTerm = 0;
         } else {
             if (nextIndex > lastLogIndex) {
-                // nextIndex超过所有日志数据（可能是follower日志并未落后，只是matchIndex需要同步，例如新leader上线，nextIndex = lastLogIndex + 1）
+                // nextIndex超过所有日志数据（可能是follower日志并未落后，只是matchIndex需要同步，例如新leader上线，令nextIndex = lastLogIndex + 1）
                 entries = Collections.emptyList();
                 prevLogIndex = lastLogIndex;
                 prevLogTerm = context.getLastLogTerm();
             } else {
                 entries = context.getLogStorage().findByIndexAndAfter(nextIndex);
                 prevLogIndex = nextIndex - 1;
-                LogEntry entry = context.getLogStorage().findByIndex(prevLogIndex);
-                prevLogTerm = entry == null ? -1 : entry.getTerm();
+                if (prevLogIndex == 0) {
+                    prevLogTerm = 0;
+                } else {
+                    LogEntry entry = context.getLogStorage().findByIndex(prevLogIndex);
+                    prevLogTerm = entry == null ? 0 : entry.getTerm();
+                }
             }
         }
 
